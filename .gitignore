@@ -5,4 +5,5 @@ DragonAcc/DragonAcc.Infrastructure/bin
 DragonAcc/DragonAcc.Infrastructure/obj
 DragonAcc/DragonAcc.Service/bin
 DragonAcc/FrontEnd/.vscode
+DragonAcc/FrontEnd/node_modules
 DragonAcc/DragonAcc.Service/obj
