@@ -1,0 +1,296 @@
+  <template>
+      <nav class="navbar navbar-expand-lg navbar-light bg-white border-bottom">
+        <div class="container d-flex align-items-center">
+          <a class="navbar-brand" href="/">
+            <img src="../assets/LogoWebsite.png" alt="" class="logo-img">
+          </a>
+
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+          </button>
+    
+          <div class="collapse navbar-collapse" id="navbarNav">
+            <div class="search-container d-flex align-items-center mx-auto my-2 my-lg-0">
+              <form class="input-group">
+                <span class="input-group-text bg-light border-0">
+                  <i class="fas fa-search"></i>
+                </span>
+                <input type="search" class="form-control border-0" placeholder="Tìm kiếm" aria-label="Search" />
+              </form>
+            </div>
+    
+            <ul class="navbar-nav ms-auto d-flex align-items-center">
+              <li class="nav-item">
+                <a class="nav-link text-center" href="/">
+                  <i class="fas fa-home"></i>
+                  <div class="nav-text">Trang chủ</div>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link text-center" href="/auctionlist">
+                  <i class="fas fa-gavel"></i>
+                  <div class="nav-text">Đấu giá</div>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link text-center" href="/luckywheel">
+                  <i class="fas fa-circle-notch"></i>
+                  <div class="nav-text">Vòng quay</div>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link text-center" href="/chatbot">
+                  <i class="fas fa-comment-dots"></i>
+                  <div class="nav-text">Nhắn tin</div>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link text-center" href="/notification">
+                  <i class="fas fa-bell"></i>
+                  <div class="nav-text">Thông báo</div>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link text-center" href="/admin">
+                  <i class="fas fa-tools"></i>
+                  <div class="nav-text">Quản trị</div>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a class="nav-link text-center" href="/aiesport">
+                  <i class="fas fa-brain"></i>
+                  <div class="nav-text">Dự đoán</div>
+                </a>
+              </li>
+              <!-- User Profile Dropdown -->
+              <li v-if="isLoggedIn" class="nav-item dropdown">
+                <a class="nav-link dropdown-toggle d-flex align-items-center" href="#" id="profileDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  <img src="https://tintuc.dienthoaigiakho.vn/wp-content/uploads/2024/01/avatar-nam-nu-trang-2.jpg" class="rounded-circle" height="30" alt="Profile" />
+                </a>
+                <div class="dropdown-menu dropdown-menu-end profile-dropdown" aria-labelledby="profileDropdown">
+                  <!-- Profile Header -->
+                  <div class="dropdown-header d-flex align-items-center">
+                    <img src="https://tintuc.dienthoaigiakho.vn/wp-content/uploads/2024/01/avatar-nam-nu-trang-2.jpg" class="rounded-circle me-2" height="50" alt="Profile" />
+                    <div>
+                      <div class="profile-name">{{ fullname }}</div>
+                      <div class="profile-status">Vip 1</div>
+                      <a href="profileview">
+                        <button class="btn btn-outline-primary btn-sm mt-2">Xem hồ sơ</button>
+                      </a>
+                    </div>
+                  </div>
+                  <hr class="dropdown-divider" />
+                  <!-- Account Section -->
+                  <div class="dropdown-section">
+                    <div class="dropdown-item"><strong>Tài khoản</strong></div>
+                    <div class="dropdown-item"><span class="badge bg-warning text-dark">Dùng thử 1 tháng Premium</span></div>
+                    <a class="dropdown-item" href="/purchasedaccount">Lịch sử giao dịch</a>
+                    <a class="dropdown-item" href="#">Nạp tiền</a>
+                    <a class="dropdown-item" href="#">Ngôn ngữ</a>
+                  </div>
+                  <hr class="dropdown-divider" />
+                  <!-- Manage Section -->
+                  <div class="dropdown-section">
+                    <div class="dropdown-item"><strong>Quản lý</strong></div>
+                    <a class="dropdown-item" href="#">Bài đăng và hoạt động</a>
+                    <a class="dropdown-item" href="#">Tài khoản đăng tin tuyển dụng</a>
+                  </div>
+                  <hr class="dropdown-divider" />
+                  <!-- Logout -->
+                  <a class="dropdown-item logout" @click.prevent="logout">Đăng xuất</a>
+                </div>
+              </li>
+              
+              <!-- Display Login Icon if Not Logged In -->
+              <li v-else class="nav-item">
+                <a class="nav-link text-center" href="/login">
+                  <i class="fas fa-user"></i>
+                  <div class="nav-text">Đăng nhập</div>
+                </a>
+              </li>            
+            </ul>
+          </div>
+        </div>
+        <!-- Container wrapper -->
+      </nav>
+    </template>
+    <script lang="ts">
+    import { computed, onMounted, ref } from 'vue';
+    import { userStore } from '@/stores/auth';
+    import router from '@/router';
+    
+    export default {
+      setup() {
+        const userStores = userStore();
+        const isLoggedIn = ref(false);
+        const showDropdown = ref(false);
+        const userFullName = ref('');
+    
+        onMounted(() => {
+          userStores.init();
+          const token = localStorage.getItem('token');
+          if (token) {
+            isLoggedIn.value = true;
+            userFullName.value = localStorage.getItem('fullName') || '';
+          }
+        });
+    
+        const fullname = computed(() => userStores.user?.fullName || 'Guest');
+    
+        const logout = () => {
+          isLoggedIn.value = false;
+          localStorage.removeItem('token');
+          localStorage.removeItem('fullName');
+          showDropdown.value = false;
+          router.push('/login'); // Redirect to login page after logout
+        };
+    
+        return {
+          fullname,
+          logout,
+          isLoggedIn,
+        };
+      },
+    };
+    </script>
+    
+
+    <style scoped>
+    .logo-img {
+      height: 39px;
+      width: auto;
+    }
+    .navbar {
+      background-color: #ffffff;
+      border-bottom: 1px solid #e6e6e6;
+      padding: 0.5rem 1rem;
+    }
+    
+    .navbar-brand {
+      font-size: 1.5rem;
+    }
+    
+    .search-container {
+      flex-grow: 1;
+      margin-left: 20px;
+    }
+    
+    .input-group {
+      width: 100%;
+      max-width: 300px;
+      border: 1px solid #dfe3e8;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+    
+    .input-group .form-control {
+      border: none;
+      box-shadow: none;
+    }
+    
+    .input-group-text {
+      background-color: #f3f6f8;
+      border: none;
+    }
+    
+    .nav-link {
+      color: #333;
+      font-size: 0.875rem;
+      text-decoration: none;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0 10px;
+    }
+    
+    .nav-link:hover {
+      color: #0073b1;
+    }
+    
+    .nav-text {
+      font-size: 0.75rem;
+      color: #6c757d;
+    }
+    
+    /* Profile Dropdown Styling */
+    .profile-dropdown {
+      width: 300px;
+      padding: 0;
+    }
+    
+    .dropdown-header {
+      padding: 15px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .profile-name {
+      font-weight: bold;
+      font-size: 1rem;
+    }
+    
+    .profile-status {
+      font-size: 0.875rem;
+      color: #6c757d;
+    }
+    
+    .btn-outline-primary {
+      border-color: #0073b1;
+      color: #0073b1;
+    }
+
+    .dropdown-section {
+      padding: 10px 15px;
+    }
+    
+    .dropdown-item {
+      font-size: 0.875rem;
+      color: #000;
+      text-decoration: none;
+    }
+    
+    .dropdown-item:hover {
+      color: #0073b1;
+      background-color: #f3f6f8;
+    }
+    
+    .badge {
+      font-size: 0.75rem;
+      padding: 3px 6px;
+      border-radius: 5px;
+    }
+    
+    hr.dropdown-divider {
+      margin: 0;
+    }
+    
+    .dropdown-item.logout {
+      text-align: center;
+      display: block;
+      padding: 10px 0;
+      margin: 0;
+    }
+    
+    /* Media Query for Responsive Design */
+    @media (max-width: 768px) {
+      .search-container {
+        margin-left: 0;
+        margin-bottom: 10px;
+        width: 100%;
+      }
+    
+      .nav-link {
+        font-size: 0.8rem;
+      }
+    
+      .navbar-nav {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+    
+      .dropdown-item {
+        font-size: 0.8rem;
+      }
+    }
+    </style>
+    
