@@ -1,9 +1,44 @@
 <template>
   <LoadingSpinner :isLoading="loading" />
   <div v-if="!loading" class="container">
+    <div class="sidebar">
+      <h3>Chọn game</h3>
+      <ul class="game-list">
+        <li
+          v-for="game in gameOptions"
+          :key="game"
+          :class="{ active: selectedGameFilter === game }"
+          @click="filterPostsByGame(game)"
+        >
+          {{ game }}
+        </li>
+      </ul>
+      <h3 class="mt-3">Trạng thái</h3>
+  <ul class="status-list">
+    <li
+      :class="{ active: selectedStatusFilter === 'All' }"
+      @click="filterPostsByStatus('All')"
+    >
+      Tất cả
+    </li>
+    <li
+      :class="{ active: selectedStatusFilter === 'Đang bán' }"
+      @click="filterPostsByStatus('Đang bán')"
+    >
+      Đang bán
+    </li>
+    <li
+      :class="{ active: selectedStatusFilter === 'Đã bán' }"
+      @click="filterPostsByStatus('Đã bán')"
+    >
+      Đã bán
+    </li>
+  </ul>
+    </div>
     <!-- Content Container -->
     <div class="content-container">
       <div class="left-column">
+        
         <!-- Post Section -->
         <div class="post-container">
           <div class="post-header">
@@ -132,11 +167,14 @@
         </div>
     
         <!-- Post Album Section -->
-      <div
+        <div
         class="post-album-container"
-        v-for="(post, index) in posts.filter(item => item.status !== 'Đang chờ duyệt')"
+        v-for="(post, index) in filteredPosts"
         :key="index"
       >
+      <div :class="['status-badge', post.status === 'Đang bán' ? 'status-selling' : 'status-sold']">
+        {{ post.status }}
+      </div>
         <div class="user-info">
         <img src="https://tintuc.dienthoaigiakho.vn/wp-content/uploads/2024/01/avatar-nam-nu-trang-2.jpg" alt="User Avatar" class="avatar" />
         <div class="user-details">
@@ -201,10 +239,12 @@
         <div class="reactions">
           <span class="reaction"><i class="fas fa-heart" style="margin-right: 5px;"></i>Thích</span>
           <span class="reaction"><i class="fas fa-comment" style="margin-right: 5px;" ></i>Bình luận</span>
-          <span class="reaction" @click="confirmAndPurchase(post)">
+          <span 
+            class="reaction" 
+            v-if="post.userId !== store.user?.id"
+            @click="confirmAndPurchase(post)">
             <i class="fas fa-shopping-cart" style="margin-right: 5px;"></i>Mua
-          </span>
-          
+          </span>         
         </div>
       </div>
       </div>      
@@ -267,10 +307,17 @@ const menuVisible = ref(false);
 const loadingImages = ref<boolean[]>([]);
 const modalVisible = ref(false);
 const successModalVisible = ref(false);
+const selectedGameFilter = ref('All');
+const gameOptions = ref(['All', 'Liên minh huyền thoại', 'Pubg', 'Ngọc rồng online', 'Valorant', 'Tốc chiến']);
 const selectedGame = ref('');
 const formData = ref<any>({});
 const submittedData = ref<any[]>([]);
 const posts = ref<any[]>([]);
+  const selectedStatusFilter = ref('All');
+const filterPostsByStatus = (status: string) => {
+  selectedStatusFilter.value = status;
+};
+
 const toggleMenu = () => {
   menuVisible.value = !menuVisible.value;
 };
@@ -489,7 +536,25 @@ const handleImageUpload = (event: Event) => {
     });
   }
 };
+const filteredPosts = computed(() => {
+  let postsFilteredByGame = posts.value.filter(item => item.status !== 'Đang chờ duyệt');
 
+  if (selectedGameFilter.value !== 'All') {
+    postsFilteredByGame = postsFilteredByGame.filter(post => post.gameName === selectedGameFilter.value);
+  }
+
+  if (selectedStatusFilter.value !== 'All') {
+    postsFilteredByGame = postsFilteredByGame.filter(post => post.status === selectedStatusFilter.value);
+  }
+
+  return postsFilteredByGame;
+});
+
+
+// Set selected game filter
+const filterPostsByGame = (game: string) => {
+  selectedGameFilter.value = game;
+};
 const fetchAllPosts = async () => {
   try {
     const [
@@ -551,8 +616,26 @@ const fetchAllPosts = async () => {
         };
       })
     );
+    const selectedStatusFilter = ref('All');
 
-    // Sort posts by created date in descending order
+const filterPostsByStatus = (status: string) => {
+  selectedStatusFilter.value = status;
+};
+
+const filteredPosts = computed(() => {
+  let postsFilteredByGame = posts.value;
+
+  if (selectedGameFilter.value !== 'All') {
+    postsFilteredByGame = postsFilteredByGame.filter(post => post.gameName === selectedGameFilter.value);
+  }
+
+  if (selectedStatusFilter.value !== 'All') {
+    postsFilteredByGame = postsFilteredByGame.filter(post => post.status === selectedStatusFilter.value);
+  }
+
+  return postsFilteredByGame;
+});
+
     posts.value.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   } catch (error) {
     console.error('Error fetching posts:', error);
@@ -588,7 +671,7 @@ onBeforeUnmount(() => {
   box-sizing: border-box;
 }
 .content-container {
-  margin-left: 330px;
+  margin-left: 20px;
   display: flex;
   flex-direction: row;
   gap: 20px;
@@ -628,6 +711,7 @@ onBeforeUnmount(() => {
 }
 .right-column {
   width: 300px;
+  
 }
 .page-container {
   background-color: white;
@@ -635,6 +719,8 @@ onBeforeUnmount(() => {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   padding: 20px;
   text-align: center;
+  position: sticky;
+  top: 88px; 
 }
 
 .profile-header {
@@ -643,7 +729,47 @@ onBeforeUnmount(() => {
   align-items: center;
   margin-bottom: 20px;
 }
+.sidebar {
+  background-color: #fff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 15px;
+  width: 300px;
+  position: sticky;
+  top: 88px; 
+}
 
+.sidebar h3 {
+  font-size: 18px;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.game-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.game-list li {
+  font-size: 14px;
+  color: #0073b1;
+  cursor: pointer;
+  padding: 10px 0;
+  border-bottom: 1px solid #ddd;
+  transition: color 0.3s;
+}
+
+.game-list li:hover,
+.game-list li.active {
+  color: #005582;
+  font-weight: bold;
+}
+
+/* Post Album Section */
+.post-album-section {
+  flex-grow: 1;
+}
 .profile-header img {
   width: 80px;
   height: 80px;
@@ -1239,4 +1365,56 @@ onBeforeUnmount(() => {
     font-size: 14px;
   }
 }
+.post-album-container {
+  position: relative; /* Ensures the status badge is positioned correctly */
+  background-color: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  max-width: 600px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Status Badge Styling */
+.status-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+}
+
+/* Colors for Status */
+.status-selling {
+  background-color: #4caf50; /* Green for 'Đang bán' */
+}
+
+.status-sold {
+  background-color: #f44336; /* Red for 'Đã bán' */
+}
+.status-list {
+  list-style: none;
+  padding: 0;
+  margin-top: 10px;
+}
+
+.status-list li {
+  font-size: 14px;
+  color: #0073b1;
+  cursor: pointer;
+  padding: 10px 0;
+  border-bottom: 1px solid #ddd;
+  transition: color 0.3s;
+}
+
+.status-list li:hover,
+.status-list li.active {
+  color: #005582;
+  font-weight: bold;
+}
+
 </style>

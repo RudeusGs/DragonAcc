@@ -50,12 +50,19 @@
                   <div class="nav-text">Thông báo</div>
                 </a>
               </li>
-              <li class="nav-item">
-                <a class="nav-link text-center" href="/admin">
+              <li class="nav-item dropdown">
+                <a class="nav-link text-center admin-dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                   <i class="fas fa-tools"></i>
                   <div class="nav-text">Quản trị</div>
                 </a>
-              </li>
+                <ul class="dropdown-menu admin-dropdown-menu" aria-labelledby="adminDropdown">
+                  <li><a class="dropdown-item admin-dropdown-item" href="#">Quản lý đấu giá</a></li>
+                  <li><a class="dropdown-item admin-dropdown-item" href="#">Quản lý vòng quay</a></li>
+                  <li><a class="dropdown-item admin-dropdown-item" href="#">Quản lý thông báo</a></li>
+                  <li><a class="dropdown-item admin-dropdown-item" href="/admin">Quản lý tài khoản</a></li>
+                  <li><a class="dropdown-item admin-dropdown-item" href="/adminmanagedeposit">Quản lý nạp thẻ</a></li>
+                </ul>
+              </li>                           
               <li class="nav-item">
                 <a class="nav-link text-center" href="/aiesport">
                   <i class="fas fa-brain"></i>
@@ -84,9 +91,14 @@
                   <div class="dropdown-section">
                     <div class="dropdown-item"><strong>Tài khoản</strong></div>
                     <div class="dropdown-item"><span class="badge bg-warning text-dark">Dùng thử 1 tháng Premium</span></div>
-                    <a class="dropdown-item" href="/purchasedaccount">Lịch sử giao dịch</a>
-                    <a class="dropdown-item" href="#">Nạp tiền</a>
-                    <a class="dropdown-item" href="#">Ngôn ngữ</a>
+                    <a class="dropdown-item" href="/purchased">Lịch sử giao dịch</a>
+                    <a class="dropdown-item" href="/deposit">Nạp tiền</a>
+                    <li class="nav-item">
+                      <a class="nav-link text-center" href="#">
+                        <i class="fas fa-globe"></i>
+                        <div class="nav-text">Ngôn ngữ</div>
+                      </a>
+                    </li>
                   </div>
                   <hr class="dropdown-divider" />
                   <!-- Manage Section -->
@@ -97,7 +109,7 @@
                   </div>
                   <hr class="dropdown-divider" />
                   <!-- Logout -->
-                  <a class="dropdown-item logout" @click.prevent="logout">Đăng xuất</a>
+                  <a class="dropdown-item logout" style="cursor: pointer;" @click.prevent="logout">Đăng xuất</a>
                 </div>
               </li>
               
@@ -118,14 +130,14 @@
     import { computed, onMounted, ref } from 'vue';
     import { userStore } from '@/stores/auth';
     import router from '@/router';
-    
     export default {
       setup() {
         const userStores = userStore();
         const isLoggedIn = ref(false);
+        const isLanguageOpen = ref(false);
         const showDropdown = ref(false);
         const userFullName = ref('');
-    
+        
         onMounted(() => {
           userStores.init();
           const token = localStorage.getItem('token');
@@ -136,19 +148,23 @@
         });
     
         const fullname = computed(() => userStores.user?.fullName || 'Guest');
-    
+        const toggleLanguage = () => {
+      isLanguageOpen.value = !isLanguageOpen.value;
+    };
         const logout = () => {
           isLoggedIn.value = false;
           localStorage.removeItem('token');
           localStorage.removeItem('fullName');
           showDropdown.value = false;
-          router.push('/login'); // Redirect to login page after logout
+          router.push('/login');
         };
     
         return {
           fullname,
           logout,
           isLoggedIn,
+          isLanguageOpen,
+          toggleLanguage,
         };
       },
     };
@@ -164,6 +180,9 @@
       background-color: #ffffff;
       border-bottom: 1px solid #e6e6e6;
       padding: 0.5rem 1rem;
+      position: sticky;
+      top: 0px;
+      z-index: 1000;
     }
     
     .navbar-brand {
@@ -263,14 +282,80 @@
     hr.dropdown-divider {
       margin: 0;
     }
+    .language-sidebar {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 300px;
+      height: 100%;
+      background-color: #ffffff;
+      border-left: 1px solid #e6e6e6;
+      padding: 20px;
+      box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+      z-index: 1001;
+      overflow-y: auto;
+    }
     
+    .language-sidebar .close-button {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
     .dropdown-item.logout {
       text-align: center;
       display: block;
       padding: 10px 0;
       margin: 0;
     }
-    
+    /* Main Dropdown Toggle Styling */
+.admin-dropdown-toggle {
+  color: #333;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.admin-dropdown-toggle:hover {
+  color: #0073b1;
+}
+
+/* Dropdown Menu Container */
+.admin-dropdown-menu {
+  min-width: 220px;
+  background-color: #ffffff;
+  border: 1px solid #e1e9ee;
+  border-radius: 8px;
+  box-shadow: 0px 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 0;
+}
+
+/* Dropdown Item Styling */
+.admin-dropdown-item {
+  font-size: 14px;
+  color: #333333;
+  padding: 10px 15px;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+/* Hover and Active Styles */
+.admin-dropdown-item:hover {
+  background-color: #f3f6f8;
+  color: #0073b1;
+}
+
+.admin-dropdown-item:active {
+  background-color: #e1ecf4;
+  color: #005582;
+}
+
+.admin-dropdown-item i {
+  margin-right: 8px;
+  color: #0073b1;
+}
+
+
     /* Media Query for Responsive Design */
     @media (max-width: 768px) {
       .search-container {
@@ -292,5 +377,6 @@
         font-size: 0.8rem;
       }
     }
-    </style>
+  
+  </style>
     

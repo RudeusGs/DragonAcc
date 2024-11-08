@@ -30,7 +30,7 @@
           </button>
         </div>
         <div class="register-link">
-          <span>Don't have an account yet?</span> <a href="#">Register for free</a>
+          <span>Don't have an account yet?</span> <a href="/register">Register for free</a>
         </div>
       </form>
     </div>
@@ -43,7 +43,6 @@ import { useRouter } from "vue-router";
 import Cookies from "js-cookie";
 import authApi from "@/api/authenticate.api";
 import { userStore } from "../stores/auth";
-import PurchasedgameaccountAPI from '@/api/purchased.api';
 export default defineComponent({
   setup() {
     const user = userStore();

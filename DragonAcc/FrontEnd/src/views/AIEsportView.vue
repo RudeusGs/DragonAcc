@@ -1,6 +1,6 @@
 <template>
     <div class="development-container">
-      <img style="width: 300px;" src="../assets/hinhdong.gif" alt="Loading Bunny" class="bunny-icon" />
+      <img style="width: 300px;" src="../assets/anhdong.gif" alt="Loading Bunny" class="bunny-icon" />
       <h1 class="development-title">Đang trong giai đoạn phát triển</h1>
       <p class="development-description">Chúng tôi đang làm việc chăm chỉ để mang đến cho bạn trải nghiệm tốt nhất. Hãy quay lại sau nhé!</p>
       <div class="development-loader">

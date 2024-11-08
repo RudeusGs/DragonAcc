@@ -56,4 +56,12 @@ export default {
       headers: { Authorization: `Bearer ${token}` },
     });
   },
+  register: async (userName: string, password: string, fullName: string, email: string): Promise<AxiosResponse> => {
+    return await apiClient.post('Authenticate/register', {
+      userName,
+      password,
+      fullName,
+      email,
+    });
+  }
 };
