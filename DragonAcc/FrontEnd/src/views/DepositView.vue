@@ -203,7 +203,7 @@ html {
 }
 
 .amount-btn.active {
-  background-color: #008080;
+  background-color: #0a66c2;
   color: white;
 }
 
@@ -216,7 +216,7 @@ html {
 .submit-btn {
   width: 100%;
   padding: 8px;
-  background-color: #008080;
+  background-color: #0a66c2;
   color: white;
   border: none;
   border-radius: 5px;

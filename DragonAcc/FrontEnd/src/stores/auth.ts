@@ -28,6 +28,10 @@ export const userStore =  defineStore({
         async logout() {
             this.user = null;
             localStorage.removeItem('user');
+        },
+        clearUser() {
+            this.user = null;
+            localStorage.removeItem('user');
         }
     }
 });

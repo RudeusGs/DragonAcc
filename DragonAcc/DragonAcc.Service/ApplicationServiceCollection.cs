@@ -41,6 +41,8 @@ namespace DragonAcc.Service
             services.AddScoped<IAccountWebsiteService, AccountWebsiteService>();
             services.AddScoped<IPurchasedAccountService, PurchasedAccountService>();
             services.AddScoped<IDepositService, DepositService>();
+            services.AddScoped<ILuckyWheelListPrizeService, LuckyWheelListPrizeService>();
+            services.AddScoped<ILuckyWheelService, LuckyWheelService>();
             #endregion
             return services;
         }

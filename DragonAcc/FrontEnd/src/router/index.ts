@@ -100,13 +100,4 @@ const router = createRouter({
   ]
 })
 
-router.beforeEach((to, from, next) => {
-  const authStore = userStore();
-  if (to.meta.requiresAuth && !authStore.user) {
-    next('/login');
-    alert("Không vào được đâu!");
-  } else {
-    next();
-  }
-});
 export default router

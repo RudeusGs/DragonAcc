@@ -3,7 +3,7 @@ export interface Message {
     sender: string; 
     receiver: string; 
     content: string; 
-    createdDate?: Date; // Optional for when fetching messages
+    createdDate?: Date;
 }
 
 export interface SendMessageModel {
