@@ -23,6 +23,7 @@ namespace DragonAcc.Infrastructure
         public DbSet<Reaction> Reactions { get; set; }
         public DbSet<PurchasedAccount> PurchasedAccounts { get; set; }
         public DbSet<Message> Messages { get; set; }
+        public DbSet<Deposit> Deposits { get; set; }
 
     }
 }

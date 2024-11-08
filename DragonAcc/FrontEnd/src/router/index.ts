@@ -1,15 +1,18 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import HomeView from '../views/HomeView.vue'
-import PurchasedAccount from '@/views/PurchasedAccount.vue'
 import ChatBoxView from '@/views/ChatBoxView.vue'
 import AboutView from '../views/AboutView.vue'
+import PurchasedGame from '@/views/PurchasedGame.vue'
 import ProfileView from '@/views/ProfileView.vue'
-import NotificationsView from '@/views/NotificationsView.vue'
+import NotificationsView from '@/views/NotiView.vue'
 import AuctionListView from '@/views/AuctionListView.vue'
 import AuctionDetailView from '@/views/AuctionDetailView.vue'
 import LoginView from '@/views/LoginView.vue'
 import LuckyWheelView from '@/views/LuckyWheelView.vue'
 import AIEsportView from '@/views/AIEsportView.vue'
+import RegisterView from '@/views/RegisterView.vue'
+import AdminManageDeposit from '@/views/AdminManageDeposit.vue'
+import DepositView from '@/views/DepositView.vue'
 import { userStore } from '../stores/auth'
 import AdminManageView from '@/views/AdminManageView.vue'
 const router = createRouter({
@@ -73,10 +76,26 @@ const router = createRouter({
       component: NotificationsView,
     }, 
     {
-      path: '/purchasedaccount',
-      name: 'purchasedaccount',
-      component: PurchasedAccount,
+      path: '/purchased',
+      name: 'purchased',
+      component: PurchasedGame,
     }, 
+    {
+      path: '/deposit',
+      name: 'deposit',
+      component: DepositView,
+    },
+    {
+      path: '/register',
+      name: 'register',
+      component: RegisterView,
+    },
+    {
+      path: '/adminmanagedeposit',
+      name: 'adminmanagedeposit',
+      component: AdminManageDeposit,
+    },
+    
     
   ]
 })

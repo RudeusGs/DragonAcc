@@ -5,7 +5,7 @@ namespace DragonAcc.Service.Interfaces
 {
     public interface IPurchasedAccountService
     {
-        Task<ApiResult> GetAllByUser(PurchasedAccount model);
+        Task<ApiResult> GetAllByUser(int userId);
 
     }
 }

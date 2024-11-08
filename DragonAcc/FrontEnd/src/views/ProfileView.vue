@@ -34,6 +34,14 @@
     <!-- User Posts Album Section -->
     <div class="user-posts-album" v-if="userPosts.length > 0">
       <div class="post-album-container" v-for="(post, index) in userPosts" :key="index">
+        <div :class="[
+    'status-badge', 
+    post.status === 'Đang bán' ? 'status-selling' : 
+    post.status === 'Đã bán' ? 'status-sold' : 
+    post.status === 'Đang chờ duyệt' ? 'status-pending' : ''
+  ]">
+    {{ post.status }}
+  </div>
         <div class="post-header">
           <img src="https://tintuc.dienthoaigiakho.vn/wp-content/uploads/2024/01/avatar-nam-nu-trang-2.jpg" alt="User Avatar" class="avatar" />
           <div class="post-user-info">
@@ -85,9 +93,6 @@
             </span>
             <span class="reaction">
               <i class="fas fa-comment" style="margin-right: 5px;"></i>Bình luận
-            </span>
-            <span class="reaction">
-              <i class="fas fa-shopping-cart" style="margin-right: 5px;"></i>Mua
             </span>
           </div>
         </div>        
@@ -349,6 +354,7 @@ onMounted(fetchData);
 }
 
 .post-album-container {
+  position: relative;
   background-color: #ffffff;
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
@@ -469,7 +475,29 @@ onMounted(fetchData);
   max-height: 300px; /* Set a maximum height for the image */
   object-fit: contain; /* Maintain the aspect ratio and fit within the defined height */
 }
+.status-badge {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: bold;
+  color: white;
+}
 
+/* Colors for Statuses */
+.status-selling {
+  background-color: #4caf50; /* Green for 'Đang bán' */
+}
+
+.status-sold {
+  background-color: #f44336; /* Red for 'Đã bán' */
+}
+
+.status-pending {
+  background-color: #ff9800; /* Yellow for 'Đang chờ duyệt' */
+}
 
 
 </style>

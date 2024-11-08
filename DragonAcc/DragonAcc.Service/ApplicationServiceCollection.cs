@@ -39,6 +39,8 @@ namespace DragonAcc.Service
             services.AddScoped<IPubg_GameService, Pubg_GameService>();
             services.AddScoped<IValorant_GameService, Valorant_GameService>();
             services.AddScoped<IAccountWebsiteService, AccountWebsiteService>();
+            services.AddScoped<IPurchasedAccountService, PurchasedAccountService>();
+            services.AddScoped<IDepositService, DepositService>();
             #endregion
             return services;
         }
