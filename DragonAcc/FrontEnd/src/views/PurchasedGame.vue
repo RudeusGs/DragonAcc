@@ -1,5 +1,6 @@
 <template>
-    <div class="container-fluid py-5">
+  <LoadingSpinner :isLoading="loading" />
+    <div v-if="!loading" class="container-fluid py-5">
       <h1 class="text-center mb-4">Danh sách tài khoản đã mua</h1>
       <div class="table-container">
         <div class="table-responsive">
@@ -38,7 +39,7 @@
   import { defineComponent, ref, onMounted } from 'vue';
   import purchasedaccountApi from '@/api/purchasedaccountservice.api';
   import { userStore } from '@/stores/auth';
-  
+  import LoadingSpinner from '@/components/LoadingSpinner.vue';
   interface Account {
     username: string;
     password: string;
@@ -90,9 +91,11 @@
       const reportAccount = (accountId: number) => {
         alert(`Báo cáo tài khoản ID: ${accountId}`);
       };
-  
+      const loading = ref(true);
       onMounted(() => {
+        loading.value = true;
         fetchPurchasedAccounts();
+        loading.value = false;
       });
   
       return {
@@ -100,6 +103,7 @@
         formatPrice,
         formatDate,
         reportAccount,
+        loading,
       };
     },
   });

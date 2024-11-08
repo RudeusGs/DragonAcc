@@ -7,3 +7,4 @@ DragonAcc/DragonAcc.Service/bin
 DragonAcc/FrontEnd/.vscode
 DragonAcc/FrontEnd/node_modules
 DragonAcc/DragonAcc.Service/obj
+DragonAcc/DragonAcc.Infrastructure/Migrations

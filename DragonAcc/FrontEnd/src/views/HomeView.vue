@@ -266,18 +266,6 @@
           <h2>{{fullname}}</h2>
           <p>Messages • Notifications</p>
         </div>
-        <div class="menu">
-          <div class="menu-item">Publish</div>
-          <div class="menu-item">Photo</div>
-          <div class="menu-item">Live</div>
-          <div class="menu-item">Invite</div>
-        </div>
-        <div class="stats">
-          <button class="likes">Likes</button>
-          <button class="views">Views</button>
-        </div>
-        <div class="likes-count">884</div>
-        <div class="new-likes">35 New Likes This Week</div>
       </div>
     </div>
   </div>
@@ -348,7 +336,7 @@ const formatBalance = (balanceString: string) => {
 const closeModal = () => {
   modalVisible.value = false;
 };
-const fullname = computed(() => store.user?.fullName || 'User');
+const fullname = computed(() => store.user?.fullName || 'Chưa đăng nhập');
 const submitForm = () => {
   submittedData.value.push({
     ...formData.value,
@@ -550,8 +538,6 @@ const filteredPosts = computed(() => {
   return postsFilteredByGame;
 });
 
-
-// Set selected game filter
 const filterPostsByGame = (game: string) => {
   selectedGameFilter.value = game;
 };
@@ -579,12 +565,10 @@ const fetchAllPosts = async () => {
       ...(valorantResponse.data.result.data || []),
     ];
 
-    // Fetch full names based on post `id` and add it to the post
     posts.value = await Promise.all(
       rawPosts.map(async (post) => {
         let fullName = '';
         try {
-          // Call the appropriate `getfullname` function with `post.id` (the post ID)
           switch (post.gameName) {
             case 'Liên minh huyền thoại':
               fullName = (await getfullname.getfullnameLol(post.id)).data.result.data;
@@ -609,7 +593,7 @@ const fetchAllPosts = async () => {
         }
         return {
           ...post,
-          fullName,  // Attach the retrieved fullName to each post
+          fullName, 
           images: post.image ? post.image.split(';') : [],
           createdAt: post.createdDate,
           updatedAt: post.updatedDate,
@@ -881,9 +865,9 @@ onBeforeUnmount(() => {
 }
 
 .menu-container {
-  position: absolute; /* Thêm vị trí tuyệt đối */
-  top: 0; /* Đặt vị trí ở trên cùng */
-  right: 0; /* Đặt vị trí ở góc phải */
+  position: absolute; 
+  top: 0;
+  right: 0;
 }
 
 .menu-icon {
@@ -897,14 +881,14 @@ onBeforeUnmount(() => {
   display: block;
   position: absolute;
   right: 0;
-  top: 30px; /* Adjusted to be below the menu icon */
+  top: 30px;
   background-color: white;
   border: 1px solid #e1e4e8;
   border-radius: 8px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
   width: 250px;
   z-index: 10000;
-  overflow: hidden; /* To keep the border-radius effect */
+  overflow: hidden;
 }
 .dropdown-menu ul {
   list-style: none;
@@ -950,7 +934,7 @@ onBeforeUnmount(() => {
 }
 
 .icon-group label {
-  font-size: 18px;
+  font-size: 38px;
   color: #999;
   cursor: pointer;
   transition: color 0.3s;
@@ -1010,6 +994,7 @@ onBeforeUnmount(() => {
 
 .user-name {
   font-weight: bold;
+  color: #0a66c2;
 }
 
 .post-type {

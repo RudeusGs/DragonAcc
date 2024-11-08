@@ -5,6 +5,7 @@ using Microsoft.EntityFrameworkCore;
 using DragonAcc.Infrastructure.Entities;
 using DragonAcc.Infrastructure.Entities.GameInfoDetail;
 using DragonAcc.Infrastructure.Base;
+using DragonAcc.Service.Models.LuckyWheel;
 
 namespace DragonAcc.Infrastructure
 {
@@ -24,6 +25,8 @@ namespace DragonAcc.Infrastructure
         public DbSet<PurchasedAccount> PurchasedAccounts { get; set; }
         public DbSet<Message> Messages { get; set; }
         public DbSet<Deposit> Deposits { get; set; }
+        public DbSet<LuckyWheel> LuckyWheels { get; set; }
+        public DbSet<LuckyWheelListPrize> LuckyWheelListPrizes { get; set; }
 
     }
 }

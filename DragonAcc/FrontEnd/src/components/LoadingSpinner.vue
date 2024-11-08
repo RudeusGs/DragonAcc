@@ -1,7 +1,7 @@
 <template> 
   <div v-if="isLoading" class="loading-overlay"> 
     <div class="loading-container">
-      <img style="width: 300px;" src="../assets/hinhdong.gif" alt="Loading Pikachu" class="pikachu-icon" />
+      <img style="width: 120px;" src="../assets/hinhdong.gif" alt="Loading Animation" class="loading-icon" />
       <div class="loading-bar">
         <div class="loading-progress"></div>
       </div>
@@ -30,7 +30,7 @@ export default defineComponent({
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: #79bcff;
+  background-color: #f3f6f8; /* LinkedIn-like light gray */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -46,20 +46,20 @@ export default defineComponent({
   position: relative;
 }
 
-.pikachu-icon {
-  width: 150px;
+.loading-icon {
+  width: 80px;
   height: auto;
-  animation: bounce 1.5s ease-in-out infinite, float 2.5s ease-in-out infinite;
-  position: relative;
+  animation: bounce 1.5s ease-in-out infinite;
 }
 
 .loading-bar {
   position: relative;
-  top: -20px;
-  width: 1000px;
-  height: 10px;
-  background-color: #79bcff;
-  border-radius: 5px;
+  top: 15px;
+  width: 80%;
+  max-width: 600px;
+  height: 6px;
+  background-color: #d3dce6;
+  border-radius: 3px;
   overflow: hidden;
   margin-top: 10px;
 }
@@ -67,16 +67,11 @@ export default defineComponent({
 .loading-progress {
   width: 0;
   height: 100%;
-  background: linear-gradient(90deg, #79bcff, #1e86ee);
+  background: linear-gradient(90deg, #0073b1, #005582);
   animation: load 3s linear infinite;
 }
 
 @keyframes bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
-}
-
-@keyframes float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-5px); }
 }

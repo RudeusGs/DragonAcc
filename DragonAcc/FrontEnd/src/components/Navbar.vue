@@ -130,6 +130,7 @@
     import { computed, onMounted, ref } from 'vue';
     import { userStore } from '@/stores/auth';
     import router from '@/router';
+    import authenticateApi from '@/api/authenticate.api';
     export default {
       setup() {
         const userStores = userStore();
@@ -151,13 +152,19 @@
         const toggleLanguage = () => {
       isLanguageOpen.value = !isLanguageOpen.value;
     };
-        const logout = () => {
-          isLoggedIn.value = false;
-          localStorage.removeItem('token');
-          localStorage.removeItem('fullName');
-          showDropdown.value = false;
-          router.push('/login');
-        };
+    const logout = async () => {
+      try {
+        await authenticateApi.logout();
+        localStorage.removeItem('token');
+        localStorage.removeItem('fullName');
+        userStores.clearUser();
+        isLoggedIn.value = false;
+        showDropdown.value = false;
+        router.push('/login');
+      } catch (error) {
+        console.error("Logout failed:", error);
+      }
+    };
     
         return {
           fullname,
@@ -231,7 +238,6 @@
       color: #6c757d;
     }
     
-    /* Profile Dropdown Styling */
     .profile-dropdown {
       width: 300px;
       padding: 0;
@@ -309,7 +315,6 @@
       padding: 10px 0;
       margin: 0;
     }
-    /* Main Dropdown Toggle Styling */
 .admin-dropdown-toggle {
   color: #333;
   display: flex;
@@ -321,7 +326,6 @@
   color: #0073b1;
 }
 
-/* Dropdown Menu Container */
 .admin-dropdown-menu {
   min-width: 220px;
   background-color: #ffffff;
@@ -331,7 +335,6 @@
   padding: 0;
 }
 
-/* Dropdown Item Styling */
 .admin-dropdown-item {
   font-size: 14px;
   color: #333333;
@@ -339,7 +342,6 @@
   transition: background-color 0.2s ease, color 0.2s ease;
 }
 
-/* Hover and Active Styles */
 .admin-dropdown-item:hover {
   background-color: #f3f6f8;
   color: #0073b1;
@@ -355,8 +357,6 @@
   color: #0073b1;
 }
 
-
-    /* Media Query for Responsive Design */
     @media (max-width: 768px) {
       .search-container {
         margin-left: 0;

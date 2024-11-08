@@ -126,7 +126,7 @@ namespace DragonAcc.Service.Services
                     UserName = model.UserName,
                     Email = model.Email,
                     FullName = model.FullName,
-                    Coin = 0,
+                    Coin = 10,
                     SecurityStamp = Guid.NewGuid().ToString(),
                     Balance = "10000",
                 };

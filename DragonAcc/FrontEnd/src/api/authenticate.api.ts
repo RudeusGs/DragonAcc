@@ -13,8 +13,7 @@
           baseApi.postAuthenticate("Authenticate/Logout",null);
       }, 
   };
-
   export interface LoginModel{
       userName: string,
       password: string,
-    }
+  }

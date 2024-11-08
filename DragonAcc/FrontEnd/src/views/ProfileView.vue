@@ -161,12 +161,6 @@ const fetchUserPosts = async () => {
         getpostbyuserid.getValorantAccountsByUser(userId)
       ]);
 
-      console.log("LOL Posts:", lolPosts);
-      console.log("Ngọc Rồng Posts:", ngocRongPosts);
-      console.log("PUBG Posts:", pubgPosts);
-      console.log("Tốc Chiến Posts:", tocChienPosts);
-      console.log("Valorant Posts:", valorantPosts);
-
       userPosts.value = [
         ...(lolPosts?.data?.data || []),
         ...(ngocRongPosts?.data?.data || []),
@@ -213,7 +207,7 @@ onMounted(fetchData);
   border-radius: 10px;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   padding: 0;
-  width: 1200px;
+  max-width: calc(100% - 80px);
   margin: 0 auto;
   font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
 }
@@ -224,6 +218,7 @@ onMounted(fetchData);
   overflow: hidden;
   border-top-left-radius: 10px;
   border-top-right-radius: 10px;
+  
 }
 
 .cover-image {
@@ -264,6 +259,7 @@ onMounted(fetchData);
 }
 .user-name1 {
   font-weight: bold;
+  color: #0a66c2;
 }
 .user-email {
   font-size: 16px;

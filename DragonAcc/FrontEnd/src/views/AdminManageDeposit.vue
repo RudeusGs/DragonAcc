@@ -95,9 +95,9 @@
         if (!this.selectedCardId) return;
         try {
           await api.updateStatus(this.selectedCardId);
-          await this.fetchCards(); // Refresh the list after approving
+          await this.fetchCards();
           this.isModalVisible = false;
-          this.isSuccessModalVisible = true; // Show success modal
+          this.isSuccessModalVisible = true;
         } catch (error) {
           console.error("Error approving card:", error);
           alert("Failed to approve the card. Please try again.");
