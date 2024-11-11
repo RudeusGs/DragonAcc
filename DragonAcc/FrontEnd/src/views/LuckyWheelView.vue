@@ -1,516 +1,465 @@
 <template>
-  <div class="lucky-wheel-container">
-    <!-- Rules Section -->
-    <div class="rule">
-      <div
-        v-for="(prize, index) in prizes"
-        :key="index"
-        class="rule__content"
-      >
-        <div :class="['rule__color', `color-${(index % 9) + 1}`]"></div>
-        <div class="rule__text">{{ prize.prize }}</div>
-      </div>
-    </div>
-
-    <!-- Wheel Section -->
-    <div class="wheel">
-      <div class="wheel__inner" ref="wheel">
-        <div
-          v-for="(prize, index) in prizes"
-          :key="index"
-          class="wheel__sec"
-          :style="getWheelSectionStyle(index)"
-        ></div>
-      </div>
-      <div class="wheel__arrow">
-        <button
-          class="wheel__button"
-          @click="spinWheel"
-          :disabled="isSpinning"
-          aria-label="Spin the lucky wheel"
-        >
-          Spin
+  <div class="scene">
+    <div class="game-container">
+      <!-- Card Section -->
+      <div class="card-section">
+        <div class="card-container" ref="cardContainer">
+          <div
+            v-for="(card, index) in shuffledRewards"
+            :key="index"
+            class="card"
+            :class="{ flipped: card.isFlipped }"
+            :style="getCardStyle(index)"
+            @click="flipCard(index)"
+          >
+            <div class="card-face front">
+              <i class="fas fa-gift"></i>
+            </div>
+            <div class="card-face back">
+              {{ card.prize }}
+            </div>
+          </div>
+        </div>
+        <button class="flip-all-button" @click="flipAllAndShuffle">
+          <i class="fas fa-play"></i> Bắt Đầu Trò Chơi
         </button>
       </div>
-      <div v-if="isSpinning" class="loading-indicator">
-        Spinning...
+      <div class="prize-section">
+        <h2><i class="fas fa-trophy"></i> Phần Thưởng Của Bạn</h2>
+        <ul class="prize-list">
+          <!-- Limit display to the first 8 items using slice -->
+          <li v-for="(prize, index) in userPrizes.slice(0, 9)" :key="index">
+            <span>{{ index + 1 }}. {{ prize.prize }}</span>
+            <span>{{ formatDate(prize.createdDate) }}</span>
+            <span class="btn-nhan"><button>Nhận</button></span>
+          </li>
+        </ul>
       </div>
     </div>
-    <p>Tốn 1 xu</p>
-    <!-- Popup Section -->
-    <div class="popup" :class="{ active: showPopup }">
-      <div class="popup__container">
-        <div class="popup__emotion">
-          <i class="fas fa-frown"></i>
-        </div>
-        <p class="popup__note">{{ popupMessage }}</p>
-      </div>
-    </div>
-    
-    <!-- Congratulation Modal -->
-    <div
-      class="congratulation"
-      v-if="showCongratulation"
-      @click.self="closeCongratulation"
-    >
-      <div class="congratulation__container">
-        <div class="congratulation__close" @click="closeCongratulation">
-          <i class="fas fa-times"></i>
-        </div>
-        <div class="congratulation__emotion">
-          <i class="fas fa-smile"></i>
-        </div>
-        <p class="congratulation__note">{{ congratulationMessage }}</p>
-      </div>
+  </div>
+  <div v-if="showInsufficientCoinsModal" class="insufficient-coins-modal-overlay">
+    <div class="insufficient-coins-modal">
+      <p>Bạn không đủ xu</p>
+      <button @click="closeModal">Đóng</button>
     </div>
   </div>
 </template>
 
-<script lang="ts">
-import { ref, onMounted } from 'vue';
-import gsap from 'gsap';
+<script>
 import { luckyWheelApi } from '@/api/luckywheel.api';
 import { luckyWheelListPrizeApi } from '@/api/luckywheellistprize.api';
 import { userStore } from '@/stores/auth';
 
-interface ListPrize {
-  id: number;
-  prize: string;
-}
-
 export default {
-  name: 'LuckyWheelView',
-  setup() {
-    const prizes = ref<ListPrize[]>([]);
-    const totalRotation = ref(0);
-    const countClicked = ref(0);
-    const clicked = ref(false);
-    const popupMessage = ref('');
-    const showPopup = ref(false);   
-    const congratulationMessage = ref('');
-    const showCongratulation = ref(false);
-    const wheel = ref<HTMLDivElement | null>(null);
-    const isSpinning = ref(false); // Indicates if the wheel is spinning
-
-    const store = userStore();
-    const userId = store.user?.id || JSON.parse(localStorage.getItem('user') || '{}').id;
-
-    const fetchUserProfile = async () => {
-      try {
-        if (userId) {
-          const response = await luckyWheelListPrizeApi.getByIdLuckyWheel(userId);
-          if (response && response.data && response.data.result.isSuccess) {
-            const userData = response.data.result.data;
-            // Utilize userData if needed
-          } else {
-            console.error('Failed to fetch user profile:', response?.data?.result?.message);
-          }
-        } else {
-          console.error('User ID not found.');
-        }
-      } catch (error) {
-        console.error('Error fetching user profile:', error);
-      }
+  name: 'CardFlip',
+  data() {
+    return {
+      rewards: [],
+      shuffledRewards: [],
+      positions: [],
+      isShuffling: false,
+      gameStarted: false,
+      canFlip: true,
+      userPrizes: [],
+      userId: null,
+      showInsufficientCoinsModal: false,
     };
+  },
+  async created() {
+    const store = userStore();
+    this.userId =
+      store.user?.id || JSON.parse(localStorage.getItem('user') || '{}').id;
 
-    onMounted(async () => {
-      await fetchUserProfile();
-
-      // Check if wheel ref is available
-      if (wheel.value) {
-        console.log('Wheel element:', wheel.value);
-      } else {
-        console.error('Cannot find wheel element.');
-      }
-
+    await this.fetchRewards();
+    await this.fetchUserPrizes();
+    this.shuffledRewards = [...this.rewards];
+    this.positions = Array.from({ length: 9 }, (_, i) => i);
+  },
+  methods: {
+    async fetchRewards() {
       try {
-        const response = await luckyWheelApi.getAllLuckyWheel();
-        if (response.isSuccess) {
-          prizes.value = response.data;
-
-          // Ensure we have 9 prizes
-          if (prizes.value.length < 9) {
-            const missing = 9 - prizes.value.length;
-            for (let i = 0; i < missing; i++) {
-              prizes.value.push({
-                id: -1, // Placeholder ID
-                prize: 'BETTER LUCK NEXT TIME',
-              });
-            }
-          } else if (prizes.value.length > 9) {
-            prizes.value = prizes.value.slice(0, 9);
-          }
+        const result = await luckyWheelApi.getAllLuckyWheel();
+        if (result.isSuccess) {
+          this.rewards = result.data.map((reward) => ({
+            ...reward,
+            isFlipped: false,
+          }));
         } else {
-          alert(response.message || 'Error fetching prizes.');
+          console.error(result.message);
         }
       } catch (error) {
-        console.error(error);
-        alert('Error fetching prizes.');
+        console.error('Error fetching rewards:', error);
       }
-    });
-
-    // Spin Wheel Handler
-    const spinWheel = async (): Promise<void> => {
-      if (isSpinning.value) {
-        console.log('Wheel is already spinning. Please wait.');
-        return;
-      }
-
-      if (clicked.value) {
-        countClicked.value++;
-        console.log(`Click count: ${countClicked.value}`);
-        if (countClicked.value <= 2) {
-          popupMessage.value = 'STOP PLAYING AROUND!';
-        } else if (countClicked.value <= 4) {
-          popupMessage.value = 'TOO STUBBORN!';
+    },
+    async fetchUserPrizes() {
+      try {
+        const result = await luckyWheelListPrizeApi.getByIdLuckyWheel(this.userId);
+        if (result.isSuccess) {
+          this.userPrizes = result.data
+            .sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate))
+            .slice(0, 10);
         } else {
-          popupMessage.value = 'TRY TO PRESS THE BUTTON PROPERLY!';
+          console.error(result.message);
         }
-        showPopup.value = true;
-        console.log('Showing popup:', popupMessage.value);
-        return;
+      } catch (error) {
+        console.error('Error fetching user prizes:', error);
       }
-
-      clicked.value = true;
-      isSpinning.value = true;
-      console.log('Starting to spin.');
-
+    },
+    flipCard(index) {
+      if (
+        this.gameStarted &&
+        !this.isShuffling &&
+        !this.shuffledRewards[index].isFlipped &&
+        this.canFlip
+      ) {
+        this.shuffledRewards[index].isFlipped = true;
+        this.canFlip = false;
+        this.spinWheel(index);
+      }
+    },
+    async spinWheel(index) {
       try {
         const result = await luckyWheelApi.spin();
-        console.log('API result:', result);
-
         if (result.isSuccess) {
-          const prize = result.data.prize || result.data.Prize;
-          console.log('Prize won:', prize);
-
-          const prizeIndex = prizes.value.findIndex(p => p.prize === prize);
-          console.log('Prize index:', prizeIndex);
-
-          if (prizeIndex === -1) {
-            throw new Error('Prize not found in the list.');
-          }
-
-          const segmentAngle = 360 / prizes.value.length;
-          const prizeRotation = (360 - (segmentAngle * prizeIndex) - (segmentAngle / 2));
-          const spins = Math.floor(Math.random() * 3) + 4; // Random spins between 4 and 6
-          const totalRotationDegrees = spins * 360 + prizeRotation;
-
-          if (wheel.value) {
-            console.log('Starting GSAP animation.');
-
-            const tl = gsap.timeline({
-              onComplete: () => {
-                console.log('Spin animation completed.');
-                congratulationMessage.value = `CONGRATULATIONS! YOU WON ${prize.toUpperCase()}`;
-                showCongratulation.value = true;
-
-                isSpinning.value = false;
-                clicked.value = false;
-                countClicked.value = 0;
-                totalRotation.value = (totalRotation.value + totalRotationDegrees) % 360; 
-              },
-            });
-
-            tl.to(wheel.value, {
-              rotation: totalRotation.value + totalRotationDegrees,
-              duration: 4,
-              ease: "power4.out",
-            });
-          }
-        } else {
-          console.log('API response was unsuccessful:', result.message);
-          popupMessage.value = result.message || 'Spin failed.';
-          showPopup.value = true;
-          isSpinning.value = false;
-          clicked.value = false;
-          countClicked.value = 0;
+          this.$set(this.shuffledRewards, index, {
+            ...this.shuffledRewards[index],
+            prize: result.prize,
+            isFlipped: true,
+          });
+          await this.fetchUserPrizes();
+        }
+        else if (result.message === "Bạn không đủ xu để quay!") {
+          this.showInsufficientCoinsModal = true;
+        }  else {
+          console.error(result.message);
         }
       } catch (error) {
         console.error('Error spinning the wheel:', error);
-        popupMessage.value = 'An error occurred during the spin. Please try again.';
-        showPopup.value = true;
-        isSpinning.value = false;
-        clicked.value = false;
-        countClicked.value = 0;
+      } finally {
+        this.canFlip = true;
       }
-    };
+    },
+    flipAllAndShuffle() {
+      if (this.isShuffling) return;
 
-    const closeCongratulation = (): void => {
-      showCongratulation.value = false;
-    };
+      this.gameStarted = true;
+      this.canFlip = false;
+      this.shuffledRewards = this.shuffledRewards.map((card) => ({
+        ...card,
+        isFlipped: true,
+      }));
 
-    const getWheelSectionStyle = (index: number) => {
-      const angle = (360 / prizes.value.length) * index;
-      const backgroundColor = getColorByIndex(index);
-      return {
-        transform: `rotate(${angle}deg)`,
-        borderTopColor: backgroundColor,
-      };
-    };
+      setTimeout(() => {
+        this.shuffledRewards = this.shuffledRewards.map((card) => ({
+          ...card,
+          isFlipped: false,
+        }));
 
-    const getColorByIndex = (index: number) => {
-      const colors = [
-        '#16a085',
-        '#2980b9',
-        '#34495e',
-        '#f39c12',
-        '#d35400',
-        '#c0392b',
-        '#8e44ad',
-        '#27ae60',
-        '#e74c3c',
+        this.isShuffling = true;
+        const shuffleInterval = setInterval(() => {
+          this.shufflePositions();
+        }, 500);
+
+        setTimeout(() => {
+          clearInterval(shuffleInterval);
+          this.isShuffling = false;
+          this.canFlip = true;
+        }, 5000);
+      }, 3000);
+    },
+    shufflePositions() {
+      const i = Math.floor(Math.random() * this.positions.length);
+      let j = Math.floor(Math.random() * this.positions.length);
+      while (j === i) {
+        j = Math.floor(Math.random() * this.positions.length);
+      }
+
+      [this.positions[i], this.positions[j]] = [this.positions[j], this.positions[i]];
+      this.applySwapAnimation(i, j);
+    },
+    applySwapAnimation(i, j) {
+  const cardElements = this.$refs.cardContainer.querySelectorAll('.card');
+  const card1 = cardElements[i];
+  const card2 = cardElements[j];
+
+  card1.style.transition = 'transform 0.5s ease-in-out';
+  card2.style.transition = 'transform 0.5s ease-in-out';
+
+  const containerRect = this.$refs.cardContainer.getBoundingClientRect();
+  const rect1 = card1.getBoundingClientRect();
+  const rect2 = card2.getBoundingClientRect();
+
+  const deltaX = rect2.left - rect1.left;
+  const deltaY = rect2.top - rect1.top;
+
+  // Adjust deltas to be relative to the container
+  const adjustedDeltaX = deltaX;
+  const adjustedDeltaY = deltaY;
+
+  card1.style.transform = `translate(${adjustedDeltaX}px, ${adjustedDeltaY}px)`;
+  card2.style.transform = `translate(${-adjustedDeltaX}px, ${-adjustedDeltaY}px)`;
+
+  // Ensure the browser applies the transform
+  requestAnimationFrame(() => {
+    setTimeout(() => {
+      card1.style.transform = '';
+      card2.style.transform = '';
+      [this.shuffledRewards[i], this.shuffledRewards[j]] = [
+        this.shuffledRewards[j],
+        this.shuffledRewards[i],
       ];
-      return colors[index % colors.length];
-    };
-
-    return {
-      prizes,
-      spinWheel,
-      showPopup,
-      popupMessage,
-      showCongratulation,
-      congratulationMessage,
-      closeCongratulation,
-      getWheelSectionStyle,
-      wheel,
-      isSpinning,
-    };
+    }, 500);
+  });
+},
+    getCardStyle(index) {
+      const pos = this.positions[index];
+      const row = Math.floor(pos / 3) + 1;
+      const col = (pos % 3) + 1;
+      return {
+        gridRow: row,
+        gridColumn: col,
+        position: 'relative',
+        zIndex: 1,
+      };
+    },
+    formatDate(dateString) {
+      const options = { day: 'numeric', month: 'numeric', year: 'numeric' };
+      return new Date(dateString).toLocaleDateString('vi-VN', options);
+    },
   },
 };
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css?family=Open+Sans:600,300');
+@import 'https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css';
+@import 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap';
 
-*, *::after, *::before {
-  outline: none;
-  margin: 0;
-  padding: 0;
+* {
   box-sizing: border-box;
 }
 
-html, body {
-  width: 100%;
-  height: 100%;
-}
-
 body {
-  background-color: #f3f4f6; /* Light gray background similar to LinkedIn */
-  font-family: 'Open Sans', sans-serif;
-  overflow: hidden;
+  font-family: 'Poppins', sans-serif;
+  background: linear-gradient(135deg, #f5f7fa, #c3cfe2);
+  margin: 0;
+  padding: 0;
 }
 
-.lucky-wheel-container {
+.scene {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  height: 90vh;
+  gap: 20px;
+  transform: scale(0.8); /* Thu nhỏ toàn bộ giao diện */
+  transform-origin: center;
 }
 
-/* Adjusted the layout to align prizes and wheel */
-.rule {
-  margin-right: 50px;
-  max-height: 80vh;
-  overflow-y: auto;
-}
-
-.rule__content {
+.game-container {
   display: flex;
-  align-items: center;
-  margin-bottom: 10px;
+  align-items: flex-start;
+  gap: 30px;
 }
 
-.rule__color {
-  width: 50px;
-  height: 50px;
-  margin-right: 20px;
-}
-
-.color-1 { background-color: #16a085; }
-.color-2 { background-color: #2980b9; }
-.color-3 { background-color: #34495e; }
-.color-4 { background-color: #f39c12; }
-.color-5 { background-color: #d35400; }
-.color-6 { background-color: #c0392b; }
-.color-7 { background-color: #8e44ad; }
-.color-8 { background-color: #27ae60; }
-.color-9 { background-color: #e74c3c; }
-
-.rule__text {
-  font-size: 16px;
-  font-weight: bold;
-  word-wrap: break-word;
-  max-width: 200px;
-  color: #2c3e50; /* Darker text color */
-}
-
-.wheel {
-  width: 312px;
-  height: 312px;
-  border-radius: 50%;
-  border: solid 6px #fff;
-  box-shadow: 0 4px 9px 0 rgba(0, 0, 0, 0.1);
-  position: relative;
-}
-
-.wheel__inner {
-  width: 300px;
-  height: 300px;
-  border-radius: 50%;
-  position: relative;
-  overflow: hidden;
-}
-
-.wheel__sec {
-  position: absolute;
-  top: 0;
-  left: 62px;
-  width: 0;
-  height: 0;
-  border-style: solid;
-  border-width: 150px 88px 0;
-  border-color: transparent;
-  transform-origin: 50% 100%;
-}
-
-.wheel__arrow {
-  width: 70px;
-  height: 70px;
-  background: #fff;
-  position: absolute;
-  top: 121px;
-  left: 115px;
-  border-radius: 50%;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  font-family: 'Open Sans', sans-serif;
-}
-
-.wheel__arrow::after {
-  content: '';
-  position: absolute;
-  width: 0;
-  height: 0;
-  border-style: solid;
-  border-width: 0 10px 20px;
-  border-color: transparent;
-  border-bottom-color: #fff;
-  top: -15px;
-  left: 25px;
-}
-
-.wheel__button {
-  width: 60px;
-  height: 60px;
-  background-color: #0073b1; /* LinkedIn primary color */
-  border: none;
-  border-radius: 50%;
-  cursor: pointer;
-  transition: 0.3s;
-  font-weight: 600;
-  font-size: 18px;
-  color: white; /* White text */
-}
-
-.wheel__button:hover {
-  background-color: #005582; /* Darker shade on hover */
-}
-
-.wheel__button:active {
-  border: solid 3px rgba(0, 0, 0, 0.1);
-  font-size: 15px;
-}
-
-.wheel__button:disabled {
-  background-color: #ccc;
-  cursor: not-allowed;
-}
-
-.popup {
-  position: fixed;
-  width: 30vw;
-  top: 0;
-  left: 50%;
-  transform: translate(-50%, -110%);
-  background: #fff;
-  box-shadow: 0 4px 9px 0 rgba(0, 0, 0, 0.1);
+.card-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 30px 20px;
-  transition: all 0.5s;
-  opacity: 0;
+  justify-content: center;
 }
 
-.popup.active {
-  transform: translate(-50%, 0);
-  opacity: 1;
+.card-container {
+  display: grid;
+  grid-template-columns: repeat(3, 90px); /* Giảm kích thước card */
+  grid-template-rows: repeat(3, 130px);
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
 }
 
-.popup__emotion {
-  color: #f39c12;
-  text-align: center;
+.card {
+  width: 100px; /* Giảm kích thước card */
+  height: 130px;
+  perspective: 1000px;
+  cursor: pointer;
+}
+
+.card .card-face {
+  width: 100%;
+  height: 100%;
+  border-radius: 10px;
+  background-color: #fff;
+  position: absolute;
+  backface-visibility: hidden;
+  transform-style: preserve-3d;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  transition: transform 0.6s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card .front {
+  background: linear-gradient(45deg, #ff6b6b, #f94d6a);
+  color: #fff;
   font-size: 30px;
-  margin: 0 0 25px 0;
 }
 
-.popup__note {
+.card .back {
+  background: #fff;
+  color: #333;
+  transform: rotateY(180deg);
+  font-size: 12px;
+  padding: 8px;
   text-align: center;
 }
 
-.congratulation {
+.card.flipped .front {
+  transform: rotateY(180deg);
+}
+
+.card.flipped .back {
+  transform: rotateY(360deg);
+}
+
+.flip-all-button {
+  margin-top: 20px;
+  padding: 10px 30px;
+  font-size: 16px;
+  background-color: #1dd1a1;
+  color: #fff;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.flip-all-button i {
+  margin-right: 10px;
+}
+
+.flip-all-button:hover {
+  background-color: #10ac84;
+  transform: translateY(-3px);
+}
+
+.prize-section {
+  width: 300px;
+  padding: 20px;
+  background-color: #ffffffcc;
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.prize-section h2 {
+  margin-bottom: 15px;
+  font-size: 16px;
+  text-align: center;
+  color: #333;
+}
+
+.prize-section h2 i {
+  color: #fbc531;
+  margin-right: 5px;
+}
+
+.prize-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.prize-list li {
+  background-color: #f1f2f6;
+  padding: 10px;
+  margin-bottom: 8px;
+  border-radius: 10px;
+  font-size: 10px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.prize-list li:last-child {
+  margin-bottom: 0;
+}
+
+.prize-list li span:first-child {
+  font-weight: 600;
+}
+
+.prize-list li span:last-child {
+  font-size: 14px;
+  color: #999;
+}
+
+.btn-nhan button {
+  margin-left: 10px;
+  padding: 4px 8px; /* Giảm padding để nút nhỏ hơn */
+  font-size: 1px; /* Giảm font-size */
+  background-color: #1dd1a1;
+  color: #fff;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.btn-nhan button:hover {
+  background-color: #10ac84; /* Màu nền khi hover */
+}
+
+.insufficient-coins-modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.2);
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
+  z-index: 1000;
 }
 
-.congratulation__container {
-  width: 40vw;
-  padding: 30px;
+.insufficient-coins-modal {
   background-color: #fff;
-  position: relative;
+  padding: 20px;
   border-radius: 10px;
-  box-shadow: 0 4px 9px 0 rgba(0, 0, 0, 0.1);
+  text-align: center;
 }
 
-.congratulation__close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  color: #c0392b;
+.insufficient-coins-modal p {
+  font-size: 16px;
+  margin-bottom: 15px;
+}
+
+.insufficient-coins-modal button {
+  padding: 8px 16px;
+  background-color: #1dd1a1;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
   cursor: pointer;
-  transition: all 0.5s;
 }
 
-.congratulation__close:hover {
-  transform: rotate(360deg);
+.insufficient-coins-modal button:hover {
+  background-color: #10ac84;
 }
 
-.congratulation__emotion {
-  color: #f39c12;
-  text-align: center;
-  margin: 0 0 20px 0;
-  font-size: 40px;
+@media screen and (max-width: 768px) {
+  .game-container {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .scene {
+    height: auto;
+    padding: 50px 0;
+  }
 }
 
-.congratulation__note {
-  text-align: center;
-  font-size: 18px;
-}
-
-.loading-indicator {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 18px;
-  color: #333;
-}
 </style>

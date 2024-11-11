@@ -43,6 +43,7 @@ namespace DragonAcc.Service
             services.AddScoped<IDepositService, DepositService>();
             services.AddScoped<ILuckyWheelListPrizeService, LuckyWheelListPrizeService>();
             services.AddScoped<ILuckyWheelService, LuckyWheelService>();
+            services.AddScoped<IAuctionService, AuctionService>();
             #endregion
             return services;
         }

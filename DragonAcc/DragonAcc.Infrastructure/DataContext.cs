@@ -27,6 +27,7 @@ namespace DragonAcc.Infrastructure
         public DbSet<Deposit> Deposits { get; set; }
         public DbSet<LuckyWheel> LuckyWheels { get; set; }
         public DbSet<LuckyWheelListPrize> LuckyWheelListPrizes { get; set; }
+        public DbSet<Auction> Auctions { get; set; }
 
     }
 }
