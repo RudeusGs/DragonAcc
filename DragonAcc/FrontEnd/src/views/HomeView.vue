@@ -2,7 +2,7 @@
   <LoadingSpinner :isLoading="loading" />
   <div v-if="!loading" class="container">
     <div class="sidebar">
-      <h3>Chọn game</h3>
+      <h3> Chọn game</h3>
       <ul class="game-list">
         <li
           v-for="game in gameOptions"
@@ -10,31 +10,32 @@
           :class="{ active: selectedGameFilter === game }"
           @click="filterPostsByGame(game)"
         >
-          {{ game }}
+          <i class="fas fa-gamepad"></i> {{ game }}
         </li>
       </ul>
+    
       <h3 class="mt-3">Trạng thái</h3>
-  <ul class="status-list">
-    <li
-      :class="{ active: selectedStatusFilter === 'All' }"
-      @click="filterPostsByStatus('All')"
-    >
-      Tất cả
-    </li>
-    <li
-      :class="{ active: selectedStatusFilter === 'Đang bán' }"
-      @click="filterPostsByStatus('Đang bán')"
-    >
-      Đang bán
-    </li>
-    <li
-      :class="{ active: selectedStatusFilter === 'Đã bán' }"
-      @click="filterPostsByStatus('Đã bán')"
-    >
-      Đã bán
-    </li>
-  </ul>
-    </div>
+      <ul class="status-list">
+        <li
+          :class="{ active: selectedStatusFilter === 'All' }"
+          @click="filterPostsByStatus('All')"
+        >
+          <i class="fas fa-list"></i> Tất cả
+        </li>
+        <li
+          :class="{ active: selectedStatusFilter === 'Đang bán' }"
+          @click="filterPostsByStatus('Đang bán')"
+        >
+          <i class="fas fa-tag"></i> Đang bán
+        </li>
+        <li
+          :class="{ active: selectedStatusFilter === 'Đã bán' }"
+          @click="filterPostsByStatus('Đã bán')"
+        >
+          <i class="fas fa-check"></i> Đã bán
+        </li>
+      </ul>
+    </div>    
     <!-- Content Container -->
     <div class="content-container">
       <div class="left-column">

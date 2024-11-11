@@ -61,10 +61,11 @@ const router = createRouter({
       component: AuctionListView,
     }, 
     {
-      path: '/auctiondetail',
-      name: 'auctiondetail',
+      path: '/auction/:id',
+      name: 'auctionDetail',
       component: AuctionDetailView,
-    }, 
+      props: true, 
+    },
     {
       path: '/profileview',
       name: 'profileview',

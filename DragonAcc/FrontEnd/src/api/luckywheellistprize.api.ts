@@ -8,7 +8,8 @@ export const luckyWheelListPrizeApi = {
   },
 
   getByIdLuckyWheel: async (id : number) => {
-      const response = await baseApi.get(`LuckyWheelListPrize/get-by-id?id=${id}`);
-      return response.data.result.data;
+      const response = await baseApi.get(`LuckyWheelListPrize/get-by-user?userId=${id}`);
+      console.log("API Response:", response);
+      return response.data;
   },
 };

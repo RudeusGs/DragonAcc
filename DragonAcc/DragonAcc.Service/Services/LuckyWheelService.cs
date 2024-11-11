@@ -160,7 +160,7 @@ namespace DragonAcc.Service.Services
                 return new ApiResult { Message = "Bạn không đủ xu để quay!" };
             }
 
-            user.Coin -= 1;
+            user.Coin -= 5;
             await _dataContext.SaveChangesAsync();
             Random rand = new Random();
             float randomNumber = (float)(rand.NextDouble() * totalProbability);
@@ -179,7 +179,7 @@ namespace DragonAcc.Service.Services
                     };
                     _dataContext.LuckyWheelListPrizes.Add(listPrize);
                     await _dataContext.SaveChangesAsync();
-                    return new() { Message = "Quay thành công! Bạn đã mất 1 xu." };
+                    return new() { Message = "Quay thành công! Bạn đã mất 5 xu." };
                 }
             }
 
