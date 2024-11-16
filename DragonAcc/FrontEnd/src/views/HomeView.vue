@@ -1,8 +1,9 @@
 <template>
   <LoadingSpinner :isLoading="loading" />
   <div v-if="!loading" class="container">
+    <!-- Sidebar -->
     <div class="sidebar">
-      <h3> Chọn game</h3>
+      <h3>Chọn game</h3>
       <ul class="game-list">
         <li
           v-for="game in gameOptions"
@@ -13,7 +14,7 @@
           <i class="fas fa-gamepad"></i> {{ game }}
         </li>
       </ul>
-    
+
       <h3 class="mt-3">Trạng thái</h3>
       <ul class="status-list">
         <li
@@ -35,353 +36,600 @@
           <i class="fas fa-check"></i> Đã bán
         </li>
       </ul>
-    </div>    
+
+      <h3 class="mt-3">Chủ sở hữu</h3>
+      <ul class="owner-list">
+        <li
+          :class="{ active: selectedOwnerFilter === 'All' }"
+          @click="filterPostsByOwner('All')"
+        >
+          <i class="fas fa-users"></i> Tất cả
+        </li>
+        <li
+          :class="{ active: selectedOwnerFilter === 'Mine' }"
+          @click="filterPostsByOwner('Mine')"
+        >
+          <i class="fas fa-user"></i> Tài khoản của tôi
+        </li>
+      </ul>
+    </div>
+
     <!-- Content Container -->
     <div class="content-container">
       <div class="left-column">
-        
-        <!-- Post Section -->
-        <div class="post-container">
-          <div class="post-header">
-            <strong>Đăng bài</strong>
-            <div class="menu-container">
-              <i class="fas fa-ellipsis-h menu-icon" @click.stop="toggleMenu"></i>
-              <div class="dropdown-menu" v-if="menuVisible">
-                <ul>
-                  <li class="drop-item" @click="selectOption('Liên minh huyền thoại')">Liên minh huyền thoại</li>
-                  <li @click="selectOption('Pubg')">Pubg</li>
-                  <li @click="selectOption('Ngọc rồng')">Ngọc rồng</li>
-                  <li @click="selectOption('Valorant')">Valorant</li>
-                  <li @click="selectOption('Tốc chiến')">Tốc chiến</li>
-                </ul>
+        <!-- Carousel -->
+        <div class="banner-carousel">
+          <div
+            class="carousel-slide"
+            v-for="(slide, index) in slides"
+            :key="index"
+            :class="{ active: currentSlide === index }"
+          >
+            <img :src="slide.image" :alt="slide.alt" />
+            <div class="carousel-caption">
+              <h3>{{ slide.title }}</h3>
+              <p>{{ slide.description }}</p>
+            </div>
+          </div>
+          <button class="carousel-button prev" @click="prevSlide">&#10094;</button>
+          <button class="carousel-button next" @click="nextSlide">&#10095;</button>
+        </div>
+
+        <h2 class="d-flex justify-content-center mt-3 mb-3">Các tài khoản hiện có</h2>
+        <!-- Post Album Grid -->
+        <div class="post-grid">
+          <div
+            class="post-album-container"
+            v-for="(post, index) in paginatedPosts"
+            :key="post.id || index"
+          >
+            <div class="user-info">
+              <div class="user-details">
+                <span class="post-type">{{ post.gameName }}</span>
+              </div>
+              <div
+                :class="[
+                  'status-badge',
+                  post.status === 'Đang bán' ? 'status-selling' : 'status-sold',
+                ]"
+              >
+                <i v-if="post.status === 'Đang bán'" class="fas fa-tag"></i>
+                <i v-else class="fas fa-check"></i>
+                {{ post.status }}
+              </div>
+            </div>
+            <div class="post-images" v-if="post.images.length > 0">
+              <img :src="getFullImageUrl(post.images[0])" alt="Product image" class="image-item" />
+            </div>
+            <div class="game-attributes">
+              <div
+                v-if="
+                  post.gameName === 'Liên minh huyền thoại' ||
+                  post.gameName === 'Tốc chiến'
+                "
+              >
+                <p>Số Lượng Tướng: {{ post.championCount }}</p>
+                <p>Số Lượng Trang Phục: {{ post.skinCount }}</p>
+                <p>Hạng: {{ post.rank }}</p>
+                <p class="price-item">{{ formatBalance(post.price) }}</p>
+              </div>
+              <div
+                v-else-if="post.gameName === 'Pubg' || post.gameName === 'Valorant'"
+              >
+                <p>Số Lượng Skin Súng: {{ post.gunSkinCount }}</p>
+                <p v-if="post.gameName === 'Pubg'">
+                  Số Lượng Skin Nhân Vật: {{ post.humanSkinCount }}
+                </p>
+                <p v-if="post.gameName === 'Valorant'">
+                  Số Lượng Nhân Vật: {{ post.championCount }}
+                </p>
+                <p>Xếp hạng: {{ post.rank }}</p>
+                <p class="price-item">{{ formatBalance(post.price) }}</p>
+              </div>
+              <div v-else-if="post.gameName === 'Ngọc rồng online'">
+                <p>Máy Chủ: {{ post.server }}</p>
+                <p>Hành Tinh: {{ post.planet }}</p>
+                <p class="price-item">{{ formatBalance(post.price) }}</p>
+              </div>
+            </div>
+            <div class="post-footer">
+              <div class="reactions">
+                <button
+                  class="reaction-button"
+                  v-if="post.userId !== store.user?.id"
+                  @click="openPurchaseModal(post)"
+                >
+                  <i class="fas fa-shopping-cart"></i>Mua
+                </button>
               </div>
             </div>
           </div>
-          <div class="post-content">
-            <img src="https://tintuc.dienthoaigiakho.vn/wp-content/uploads/2024/01/avatar-nam-nu-trang-2.jpg" alt="User Avatar" class="avatar" />
+        </div>
+
+        <!-- Pagination Controls -->
+        <div class="pagination" v-if="totalPages > 1">
+          <button
+            class="pagination-button"
+            :disabled="currentPage === 1"
+            @click="goToPage(currentPage - 1)"
+          >
+            &laquo; Trước
+          </button>
+
+          <button
+            class="pagination-button"
+            v-for="(page, idx) in paginationRange"
+            :key="`page-${page}-${idx}`"
+            :class="{ active: currentPage === page }"
+            @click="goToPage(page)"
+          >
+            {{ page }}
+          </button>
+
+          <button
+            class="pagination-button"
+            :disabled="currentPage === totalPages"
+            @click="goToPage(currentPage + 1)"
+          >
+            Tiếp &raquo;
+          </button>
+        </div>
+      </div>
+
+      <!-- Right Column -->
+      <div class="right-column">
+        <div class="page-container">
+          <div class="profile-header">
+            <img src="../assets/avatar.jpg" alt="User Avatar" />
+            <h2>{{ userModel.fullName || fullname }}</h2>
+            <div class="user-stats">
+              <div class="stat-card1">
+                <i class="fas fa-wallet"></i>
+                <span>{{ formatBalance(userModel.balance) }}</span>
+                <a href="/deposit" class="deposit-link"><i class="fas fa-plus"></i></a>
+              </div>
+              <div class="stat-card">
+                <i class="fas fa-coins"></i>
+                <span>{{ userModel.coin }}</span>
+              </div>
+              <div class="stat-card1">
+                <i class="fas fa-shopping-cart"></i>
+                <span>Tài khoản:  {{ mySellingAccounts }}</span>
+                <a class="deposit-link" @click.prevent="openAddAccountModal" style="cursor: pointer;"><i class="fas fa-plus"></i></a>
+              </div>
+              <div class="stats-button-container">
+                <a href="/statistical" class="stats-button">
+                  <i class="fas fa-chart-line"></i> Thống kê
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Purchase Confirmation Modal -->
+      <div class="modal-overlay" v-if="purchaseModalVisible">
+        <div class="modal-content">
+          <h2>Xác nhận mua tài khoản</h2>
+          <p>Bạn có chắc chắn muốn mua tài khoản <strong>{{ selectedPost?.gameName }}</strong> của <strong>{{ selectedPost?.fullName }}</strong>?</p>
+          <div class="modal-buttons">
+            <button type="button" @click="confirmPurchase" class="confirm-button">Xác nhận</button>
+            <button type="button" @click="closePurchaseModal" class="cancel-button">Hủy</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Error Modal -->
+      <div class="modal-overlay error-modal" v-if="errorModalVisible">
+        <div class="modal-content">
+          <i class="fas fa-exclamation-triangle error-icon"></i>
+          <h2>Lỗi</h2>
+          <p>{{ errorModalMessage }}</p>
+          <div class="modal-buttons">
+            <button type="button" @click="closeErrorModal" class="close-button">
+              Đóng
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Success Modal -->
+      <div class="modal-overlay success-modal" v-if="successModalVisible">
+        <div class="modal-content">
+          <i class="fas fa-check-circle success-icon"></i>
+          <h2>{{ successModalTitle }}</h2>
+          <p>{{ successModalMessage }}</p>
+          <div class="modal-buttons">
+            <button type="button" @click="closeSuccessModal" class="close-button">
+              Đóng
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Insufficient Funds Modal -->
+      <div class="modal-overlay" v-if="insufficientFundsModalVisible">
+        <div class="modal-content">
+          <i class="fas fa-exclamation-triangle error-icon"></i>
+          <h2>Không đủ tiền!</h2>
+          <p>Bạn không đủ số dư để mua tài khoản này.</p>
+          <div class="modal-buttons">
+            <button type="button" @click="closeInsufficientFundsModal" class="close-button">
+              Đóng
+            </button>
+            <a href="/deposit" class="deposit-link">
+              <button type="button" class="deposit-button">Nạp tiền</button>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Add Account Modal -->
+      <div class="new-modal-overlay" v-if="addAccountModalVisible">
+        <div class="new-modal-content">
+          <h2>Thêm Tài Khoản Mới</h2>
+          <form @submit.prevent="submitAddAccount">
+            <!-- Lựa chọn game -->
+            <div class="new-form-group">
+              <label for="game">Chọn Game:</label>
+              <select v-model="newAccount.gameName" id="game" required>
+                <option disabled value="">Vui lòng chọn game</option>
+                <option v-for="game in gameOptions" :key="game" :value="game">
+                  {{ game }}
+                </option>
+              </select>
+            </div>
+
+            <!-- Tên tài khoản -->
+            <div class="new-form-group">
+              <label for="accountName">Tên Tài Khoản:</label>
+              <input type="text" id="accountName" v-model="newAccount.AccountName" required />
+            </div>
+
+            <!-- Mật khẩu -->
+            <div class="new-form-group">
+              <label for="password">Mật Khẩu:</label>
+              <input type="password" id="password" v-model="newAccount.Password" required />
+            </div>
+
+            <!-- Giá tài khoản -->
+            <div class="new-form-group">
+              <label for="price">Giá:</label>
+              <input type="number" id="price" v-model.number="newAccount.Price" required min="0" />
+            </div>
+
+            <!-- Upload hình ảnh -->
+            <label class="new-label-image-upload" for="image-upload">
+              <i class="fas fa-image"></i> Chọn hình ảnh
+            </label>
             <input
-              type="text"
-              placeholder="Mô tả về tài khoản của bạn"
-              class="post-input"
-              v-model="postText"
+              type="file"
+              id="image-upload"
+              class="new-image-input"
+              @change="handleImageUpload"
+              multiple
             />
-          </div>
-          <div class="input-container d-flex justify-content-center">
-            <input type="text" class="linkedin-input" placeholder="Giá VNĐ" v-model="formData.price" />
-          </div>          
-          <div class="submitted-info" v-if="submittedData.length > 0">
-            <div v-for="(data, index) in submittedData" :key="index" class="info-item">
-              <h3 class="d-flex justify-content-center">Thông tin tài khoản {{data.selectedGame}}</h3>
-              <p><strong>Tên Tài Khoản:</strong> {{ data.accountName }}</p>
-              <p><strong>Mật khẩu:</strong> {{ data.password }}</p>
-              <p><strong>Xếp hạng:</strong> {{ data.rank || 'Chưa xếp hạng' }}</p>
-              <p v-if="data.championCount !== null"><strong>Số Lượng Tướng:</strong> {{ data.championCount }}</p>
-              <p v-if="data.skinCount !== null"><strong>Số Lượng Trang Phục:</strong> {{ data.skinCount }}</p>
-              <p v-if="data.gunSkinCount !== null"><strong>Số Lượng Skin Súng:</strong> {{ data.gunSkinCount }}</p>
-              <p v-if="data.humanSkinCount !== null"><strong>Số Lượng Skin Nhân Vật:</strong> {{ data.humanSkinCount }}</p>
-              <p v-if="data.server !== null"><strong>Máy Chủ:</strong> {{ data.server }}</p>
-              <p v-if="data.planet"><strong>Hành Tinh:</strong> {{ data.planet }}</p>
+
+            <!-- Image Preview Section -->
+            <div class="selected-images" v-if="images.length > 0">
+              <div v-for="(img, idx) in images" :key="idx" class="selected-image">
+                <img :src="img" alt="Selected Image" />
+                <button type="button" @click="removeImage(idx)" class="remove-image-button">×</button>
+              </div>
             </div>
-          </div>
-          <div class="post-actions">
-            <div class="icon-group d-flex justify-content-center">
-              <label for="image-upload">
-                <i class="fas fa-image"></i>
-              </label>
-              <input
-                type="file"
-                id="image-upload"
-                class="image-input"
-                @change="handleImageUpload"
-                multiple
-              />
+
+            <!-- Các trường thông tin khác theo game -->
+            <div v-if="newAccount.gameName === 'Liên minh huyền thoại' || newAccount.gameName === 'Tốc chiến'">
+              <div class="new-form-group">
+                <label for="championCount">Số Lượng Tướng:</label>
+                <input type="number" id="championCount" v-model.number="newAccount.championCount" required min="0" />
+              </div>
+              <div class="new-form-group">
+                <label for="skinCount">Số Lượng Trang Phục:</label>
+                <input type="number" id="skinCount" v-model.number="newAccount.skinCount" required min="0" />
+              </div>
+              <div class="new-form-group">
+                <label for="rank">Hạng:</label>
+                <input type="text" id="rank" v-model="newAccount.rank" required />
+              </div>
             </div>
-          </div>
-          <div class="image-preview">
-            <div class="image-wrapper" v-for="(image, index) in images" :key="index">
-              <img :src="image" class="thumbnail" alt="Preview" />
-              <span class="delete-icon" @click="removeImage(index)"><i class="fas fa-times"></i></span>
+
+            <div v-else-if="newAccount.gameName === 'Pubg' || newAccount.gameName === 'Valorant'">
+              <div class="new-form-group">
+                <label for="gunSkinCount">Số Lượng Skin Súng:</label>
+                <input type="number" id="gunSkinCount" v-model.number="newAccount.gunSkinCount" required min="0" />
+              </div>
+              <div v-if="newAccount.gameName === 'Pubg'" class="new-form-group">
+                <label for="humanSkinCount">Số Lượng Skin Nhân Vật:</label>
+                <input type="number" id="humanSkinCount" v-model.number="newAccount.humanSkinCount" required min="0" />
+              </div>
+              <div v-if="newAccount.gameName === 'Valorant'" class="new-form-group">
+                <label for="championCount">Số Lượng Nhân Vật:</label>
+                <input type="number" id="championCount" v-model.number="newAccount.championCount" required min="0" />
+              </div>
+              <div class="new-form-group">
+                <label for="rank">Xếp hạng:</label>
+                <input type="text" id="rank" v-model="newAccount.rank" required />
+              </div>
             </div>
-          </div>
-          <button class="post-button" @click="submitPost">Đăng</button>
-        </div>
-        <div class="modal-overlay" v-if="modalVisible">
-          <div class="modal-content">
-            <h2>Vui lòng nhập đúng thông tin</h2>
-            <form @submit.prevent="submitForm">
-              <div>
-                <label for="accountName">Tên Tài Khoản:</label>
-                <input type="text" id="accountName" v-model="formData.accountName" />
+
+            <div v-else-if="newAccount.gameName === 'Ngọc rồng online'">
+              <div class="new-form-group">
+                <label for="server">Máy Chủ:</label>
+                <input type="text" id="server" v-model="newAccount.server" required />
               </div>
-              <div>
-                <label for="password">Mật Khẩu:</label>
-                <input type="password" id="password" v-model="formData.password" />
+              <div class="new-form-group">
+                <label for="planet">Hành Tinh:</label>
+                <input type="text" id="planet" v-model="newAccount.planet" required />
               </div>
-              <div v-if="selectedGame === 'Liên minh huyền thoại' || selectedGame === 'Tốc chiến'">
-                <div>
-                  <label for="championCount">Số Lượng Tướng:</label>
-                  <input type="number" id="championCount" v-model="formData.championCount" />
-                </div>
-                <div>
-                  <label for="skinCount">Số Lượng Trang Phục:</label>
-                  <input type="number" id="skinCount" v-model="formData.skinCount" />
-                </div>
-                <div>
-                  <label for="rank">Hạng:</label>
-                  <input type="text" id="rank" v-model="formData.rank" />
-                </div>
-              </div>
-              <div v-else-if="selectedGame === 'Pubg' || selectedGame === 'Valorant'">
-                <div>
-                  <label for="gunSkinCount">Số Lượng Skin Súng:</label>
-                  <input type="number" id="gunSkinCount" v-model="formData.gunSkinCount" />
-                </div>
-                <div v-if="selectedGame === 'Pubg'">
-                  <label for="humanSkinCount">Số Lượng Skin Nhân Vật:</label>
-                  <input type="number" id="humanSkinCount" v-model="formData.humanSkinCount" />
-                </div>
-                <div v-if="selectedGame === 'Valorant'">
-                  <label for="championCount">Số Lượng Nhân Vật:</label>
-                  <input type="number" id="championCount" v-model="formData.championCount" />
-                </div>
-                <div>
-                  <label for="rank">Xếp hạng:</label>
-                  <input type="text" id="rank" v-model="formData.rank" />
-                </div>
-              </div>
-              <div v-else-if="selectedGame === 'Ngọc rồng'">
-                <div>
-                  <label for="server">Máy Chủ:</label>
-                  <input type="number" id="server" v-model="formData.server" />
-                </div>
-                <div>
-                  <label for="planet">Hành Tinh:</label>
-                  <input type="text" id="planet" v-model="formData.planet" />
-                </div>
-              </div>
-              <div class="modal-buttons">
-                <button type="submit">Xác Nhận</button>
-                <button type="button" @click="closeModal">Hủy</button>
-              </div>
-            </form>
-          </div>
-        </div>
-    
-        <!-- Post Album Section -->
-        <div
-        class="post-album-container"
-        v-for="(post, index) in filteredPosts"
-        :key="index"
-      >
-      <div :class="['status-badge', post.status === 'Đang bán' ? 'status-selling' : 'status-sold']">
-        {{ post.status }}
-      </div>
-        <div class="user-info">
-        <img src="https://tintuc.dienthoaigiakho.vn/wp-content/uploads/2024/01/avatar-nam-nu-trang-2.jpg" alt="User Avatar" class="avatar" />
-        <div class="user-details">
-          <span class="user-name">{{ post.fullName }}</span>
-          <span class="post-type"> • {{ post.gameName }}</span>
-          <div class="post-date">{{ formatDate(post.createdAt) }}</div>
-        </div>
-        </div>
-  
-        <div class="post-content">
-          <p>{{ post.description }}</p>
-        </div>
-  
-        <div class="post-images" v-if="post.images.length > 0">
-         <div
-        class="image-grid"
-          :class="{
-        'single-image': post.images.length === 1,
-        'two-images': post.images.length === 2,
-        'three-images': post.images.length === 3,
-        'multiple-images': post.images.length > 3
-      }"
-    >
-      <img
-        v-for="(image, imgIndex) in post.images"
-        :key="imgIndex"
-        :src="getFullImageUrl(image)"
-        alt="Product image"
-        class="image-item"
-      />
-    </div>
-  </div>
-  
-  <!-- Game-specific Attributes -->
-  <div class="game-attributes">
-    <!-- For Liên minh huyền thoại and Tốc chiến -->
-    <div v-if="post.gameName === 'Liên minh huyền thoại' || post.gameName === 'Tốc chiến'">
-      <p>Số Lượng Tướng: {{ post.championCount }}</p>
-      <p>Số Lượng Trang Phục: {{ post.skinCount }}</p>
-      <p>Hạng: {{ post.rank }}</p>
-      <p class="price-item">Giá: {{ formatBalance(post.price) }}</p>
-    </div>
-    
-    <!-- For Pubg and Valorant -->
-    <div v-else-if="post.gameName === 'Pubg' || post.gameName === 'Valorant'">
-      <p>Số Lượng Skin Súng: {{ post.gunSkinCount }}</p>
-      <p v-if="post.gameName === 'Pubg'">Số Lượng Skin Nhân Vật: {{ post.humanSkinCount }}</p>
-      <p v-if="post.gameName === 'Valorant'">Số Lượng Nhân Vật: {{ post.championCount }}</p>
-      <p>Xếp hạng: {{ post.rank }}</p>
-      <p class="price-item">Giá: {{ formatBalance(post.price) }}</p>
-    </div>
-    
-    <!-- For Ngọc rồng online -->
-      <div v-else-if="post.gameName === 'Ngọc rồng online'">
-          <p>Máy Chủ: {{ post.server }}</p>
-          <p>Hành Tinh: {{ post.planet }}</p>
-          <p class="price-item">Giá: {{ formatBalance(post.price) }}</p>
-        </div>
-      </div>
-  
-      <div class="post-footer">
-        <div class="reactions">
-          <span class="reaction"><i class="fas fa-heart" style="margin-right: 5px;"></i>Thích</span>
-          <span class="reaction"><i class="fas fa-comment" style="margin-right: 5px;" ></i>Bình luận</span>
-          <span 
-            class="reaction" 
-            v-if="post.userId !== store.user?.id"
-            @click="confirmAndPurchase(post)">
-            <i class="fas fa-shopping-cart" style="margin-right: 5px;"></i>Mua
-          </span>         
-        </div>
-      </div>
-      </div>      
-        <div class="modal-overlay success-modal" v-if="successModalVisible">
-          <div class="modal-content">
-            <i class="fas fa-check-circle success-icon"></i>
-            <h2>Đăng bài thành công!</h2>
-            <p>Bài đăng của bạn đã được gửi thành công.</p>
-            <div class="modal-buttons">
-              <button type="button" @click="closeSuccessModal" class="close-button">Đóng</button>
             </div>
-          </div>
-        </div>        
-    </div>
-    <div class="right-column">
-      <div class="page-container">
-        <div class="profile-header">
-          <img src="https://tintuc.dienthoaigiakho.vn/wp-content/uploads/2024/01/avatar-nam-nu-trang-2.jpg" alt="User Avatar" />
-          <h2>{{fullname}}</h2>
-          <p>Messages • Notifications</p>
+
+            <!-- Nút xác nhận và hủy -->
+            <div class="new-modal-buttons">
+              <button type="submit" class="new-confirm-button">Thêm Tài Khoản</button>
+              <button type="button" @click="closeAddAccountModal" class="new-cancel-button">Hủy</button>
+            </div>
+          </form>
         </div>
       </div>
     </div>
   </div>
-</div>
 </template>
+
 <script setup lang="ts">
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
-import { ref, onMounted, onBeforeUnmount, computed } from 'vue';
-import {
-  addLol_Game,
-  addNgocRong_Game,
-  addPubg_Game,
-  addTocChien_Game,
-  addValorant_Game,
-} from '@/api/addgameaccount.api';
+import { ref, onMounted, computed, onUnmounted } from 'vue';
 import PurchasedgameaccountAPI from '@/api/purchased.api';
 import { userStore } from '@/stores/auth';
 import getallgameaccountAPI from '@/api/getallgameaccount.api';
 import getfullname from '@/api/getfullname.api';
+import profile from '@/api/profile.api';
+import * as addGameAccountAPI from '@/api/addgameaccount.api'; 
 
-const postText = ref('');
+// Initialize user store
 const store = userStore();
-const images = ref<string[]>([]);
-const loading = ref(true);
-const imageFiles = ref<File[]>([]);
-const menuVisible = ref(false);
-const loadingImages = ref<boolean[]>([]);
-const modalVisible = ref(false);
+
+// Modal Visibility States
+const approvalModalVisible = ref(false);
 const successModalVisible = ref(false);
-const selectedGameFilter = ref('All');
-const gameOptions = ref(['All', 'Liên minh huyền thoại', 'Pubg', 'Ngọc rồng online', 'Valorant', 'Tốc chiến']);
-const selectedGame = ref('');
-const formData = ref<any>({});
-const submittedData = ref<any[]>([]);
+
+// Success Modal Titles and Messages
+const successModalTitle = ref<string>('');
+const successModalMessage = ref<string>('');
+
+
+// Modal Control Methods
+const openErrorModal = (message: string): void => {
+  successModalVisible.value = false; // Close success modal if open
+  errorModalMessage.value = message;
+  errorModalVisible.value = true;
+};
+
+const closeErrorModal = (): void => {
+  errorModalVisible.value = false;
+  errorModalMessage.value = '';
+};
+
+const openSuccessModal = (title: string, message: string): void => {
+  errorModalVisible.value = false; // Close error modal if open
+  successModalTitle.value = title;
+  successModalMessage.value = message;
+  successModalVisible.value = true;
+};
+
+const closeSuccessModal = (): void => {
+  successModalVisible.value = false;
+  successModalTitle.value = '';
+  successModalMessage.value = '';
+};
+
+// Error Modal Control
+const errorModalVisible = ref<boolean>(false);
+const errorModalMessage = ref<string>('');
+
+// Reactive variables
+const loading = ref(true);
+const selectedGameFilter = ref<string>('All');
+const gameOptions = ref<string[]>([
+  'All',
+  'Liên minh huyền thoại',
+  'Pubg',
+  'Ngọc rồng online',
+  'Valorant',
+  'Tốc chiến',
+]);
+const selectedStatusFilter = ref<string>('All');
+const selectedOwnerFilter = ref<string>('All');
 const posts = ref<any[]>([]);
-  const selectedStatusFilter = ref('All');
-const filterPostsByStatus = (status: string) => {
-  selectedStatusFilter.value = status;
+const purchaseModalVisible = ref(false); 
+const selectedPost = ref<any | null>(null);
+const insufficientFundsModalVisible = ref<boolean>(false);
+const addAccountModalVisible = ref<boolean>(false);
+const imageFiles = ref<File[]>([]);
+const images = ref<string[]>([]);
+
+// New account form data
+const newAccount = ref({
+  gameName: '',
+  AccountName: '',
+  Password: '',
+  Price: 0,
+  Image: '',
+  // Game-specific fields
+  championCount: 0,
+  skinCount: 0,
+  rank: '',
+  gunSkinCount: 0,
+  humanSkinCount: 0,
+  server: '',
+  planet: '',
+});
+
+// Pagination variables
+const currentPage = ref<number>(1);
+const itemsPerPage: number = 21;
+
+// Modal control methods
+const closePurchaseModal = (): void => {
+  purchaseModalVisible.value = false;
 };
 
-const toggleMenu = () => {
-  menuVisible.value = !menuVisible.value;
+const closeInsufficientFundsModal = (): void => {
+  insufficientFundsModalVisible.value = false;
 };
 
-const selectOption = (option: string) => {
-  selectedGame.value = option;
-  modalVisible.value = true;
-  menuVisible.value = false;
-  formData.value = {
+const openAddAccountModal = (): void => {
+  addAccountModalVisible.value = true;
+};
+
+const closeAddAccountModal = (): void => {
+  addAccountModalVisible.value = false;
+  resetAddAccountForm();
+};
+
+// Reset the add account form
+const resetAddAccountForm = (): void => {
+  newAccount.value = {
     gameName: '',
-    accountName: '',
-    password: '',
-    price: '',
-    championCount: null,
-    skinCount: null,
+    AccountName: '',
+    Password: '',
+    Price: 0,
+    Image: '',
+    championCount: 0,
+    skinCount: 0,
     rank: '',
-    gunSkinCount: null,
-    humanSkinCount: null,
-    server: null,
+    gunSkinCount: 0,
+    humanSkinCount: 0,
+    server: '',
     planet: '',
   };
+  imageFiles.value = [];
+  images.value = [];
 };
-const formatBalance = (balanceString: string) => {
+
+// Handle image upload
+const handleImageUpload = (event: Event): void => {
+  const files = (event.target as HTMLInputElement).files;
+  if (files) {
+    Array.from(files).forEach((file: File) => {
+      imageFiles.value.push(file);
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        if (e.target && e.target.result) {
+          images.value.push(e.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+};
+
+// Remove selected image
+const removeImage = (index: number): void => {
+  imageFiles.value.splice(index, 1);
+  images.value.splice(index, 1);
+};
+
+// User information
+const userModel = ref({
+  fullName: '',
+  email: '',
+  balance: '0',
+  coin: 0,
+  createdDate: null,
+});
+
+// Fetch user profile
+const fetchUserProfile = async (shouldHandleError: boolean = true) => {
+  try {
+    const userId = store.user?.id || JSON.parse(localStorage.getItem('user') || '{}').id;
+    if (userId) {
+      const response = await profile.getByIdProfile(userId);
+      if (response && response.data && response.data.result.isSuccess) {
+        const userData = response.data.result.data;
+        userModel.value = {
+          fullName: userData.fullName || '',
+          email: userData.email || '',
+          balance: userData.balance || '0',
+          coin: userData.coin || 0,
+          createdDate: userData.createdDate || '',
+        };
+      }
+    } else {
+      console.error('User ID not found.');
+      if (shouldHandleError) {
+        openErrorModal('User ID not found.');
+      }
+    }
+  } catch (error) {
+    console.error('Error fetching user profile:', error);
+    if (shouldHandleError) {
+      openErrorModal('Đã xảy ra lỗi khi lấy thông tin người dùng.');
+    }
+  }
+};
+
+// Full name of the user
+const fullname = computed<string>(() => store.user?.fullName || 'Chưa đăng nhập');
+
+// Filtering methods
+const filterPostsByStatus = (status: string) => {
+  selectedStatusFilter.value = status;
+  currentPage.value = 1;
+};
+
+const filterPostsByGame = (game: string) => {
+  selectedGameFilter.value = game;
+  currentPage.value = 1;
+};
+
+const filterPostsByOwner = (owner: string) => {
+  selectedOwnerFilter.value = owner;
+  currentPage.value = 1;
+};
+
+// Format balance
+const formatBalance = (balanceString: string): string => {
   const balance = parseFloat(balanceString);
   if (isNaN(balance)) return '0 VNĐ';
   return balance.toLocaleString('vi-VN') + ' VNĐ';
 };
-const closeModal = () => {
-  modalVisible.value = false;
-};
-const fullname = computed(() => store.user?.fullName || 'Chưa đăng nhập');
-const submitForm = () => {
-  submittedData.value.push({
-    ...formData.value,
-    selectedGame: selectedGame.value,
-  });
-  modalVisible.value = false;
-};
-const closeSuccessModal = () => {
-  successModalVisible.value = false;
-};
-const formatDate = (dateString: string) => {
-  if (!dateString) return '';
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 
-  if (diffInSeconds < 60) return 'Vừa xong';
-  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)} phút trước`;
-  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)} giờ trước`;
-  if (diffInSeconds < 2592000) return `${Math.floor(diffInSeconds / 86400)} ngày trước`;
-  
-  return date.toLocaleDateString('vi-VN');
+// Open Purchase Modal
+const openPurchaseModal = (post: any): void => {
+  selectedPost.value = post;
+  purchaseModalVisible.value = true;
 };
-const confirmAndPurchase = async (post: any) => {
-  const userConfirmed = window.confirm(`Bạn có chắc chắn muốn mua tài khoản ${post.gameName} của ${post.fullName}?`);
-  if (userConfirmed) {
-    await handlePurchase(post);
+
+// Confirm Purchase
+const confirmPurchase = async (): Promise<void> => {
+  if (!selectedPost.value) return;
+  purchaseModalVisible.value = false;
+
+  // Check if user has enough balance
+  const userBalance = parseFloat(userModel.value.balance);
+  const postPrice = parseFloat(selectedPost.value.price);
+  if (isNaN(userBalance) || isNaN(postPrice)) {
+    openErrorModal('Lỗi dữ liệu.');
+    return;
   }
-};
-const handlePurchase = async (post: any) => {
+
+  if (userBalance < postPrice) {
+    insufficientFundsModalVisible.value = true;
+    return;
+  }
+
   try {
+    const gameAccountId = selectedPost.value.id;
     const userId = store.user?.id;
-    if (!userId) {
-      alert("Please log in to proceed with the purchase.");
-      return;
-    }
-    const gameAccountId = post.id;
-    if (!gameAccountId) {
-      alert("Game account ID is missing in post data. Please check the source.");
+    if (!userId || !gameAccountId) {
+      openErrorModal('Lỗi dữ liệu.');
       return;
     }
 
-    const gameName = post.gameName;
-    let response;
+    const gameName = selectedPost.value.gameName;
+    let response: any;
+
     switch (gameName) {
       case 'Liên minh huyền thoại':
         response = await PurchasedgameaccountAPI.purchasedLOL(gameAccountId, userId);
@@ -399,102 +647,110 @@ const handlePurchase = async (post: any) => {
         response = await PurchasedgameaccountAPI.purchasedValorant(gameAccountId, userId);
         break;
       default:
-        alert("Invalid game selection for purchase.");
-        return;
+        return openErrorModal('Game không hợp lệ cho việc mua hàng.');
     }
+
     if (response && response.data.result.isSuccess) {
-      alert("Purchase successful!");
-      fetchAllPosts();
+      openSuccessModal('Mua tài khoản thành công!', 'Bạn đã mua tài khoản thành công.');
+      await fetchAllPosts(false);
+      await fetchUserProfile(false);
     } else {
-      alert(response.data.result.message || "Purchase failed. Please try again.");
+      openErrorModal(response.data.result.message || 'Mua hàng thất bại.');
     }
   } catch (error) {
-    console.error("Error during purchase:", error);
-    alert("An error occurred while processing the purchase.");
+    console.error('Lỗi khi mua hàng:', error);
+    openErrorModal('Vui lòng đăng nhập!.');
   }
 };
 
-const resetForm = () => {
-  formData.value = {};
-  images.value = [];
-  imageFiles.value = [];
-  selectedGame.value = '';
-  postText.value = '';
-  submittedData.value = [];
+// Submit Add Account
+const submitAddAccount = async (): Promise<void> => {
+  try {
+    // Kiểm tra các trường bắt buộc
+    if (
+      !newAccount.value.gameName ||
+      !newAccount.value.AccountName ||
+      !newAccount.value.Password ||
+      !newAccount.value.Price ||
+      imageFiles.value.length === 0
+    ) {
+      openErrorModal('Vui lòng điền đầy đủ các trường bắt buộc.');
+      return;
+    }
+
+    // Tạo FormData
+    const formDataToSend = new FormData();
+    formDataToSend.append('GameName', newAccount.value.gameName);
+    formDataToSend.append('AccountName', newAccount.value.AccountName);
+    formDataToSend.append('Password', newAccount.value.Password);
+    formDataToSend.append('Price', newAccount.value.Price.toString());
+
+    // Đính kèm hình ảnh
+    imageFiles.value.forEach((file) => {
+      formDataToSend.append('Files', file);
+    });
+
+    // Đính kèm các trường thông tin cụ thể theo game
+    switch (newAccount.value.gameName) {
+      case 'Liên minh huyền thoại':
+        formDataToSend.append('ChampionCount', newAccount.value.championCount.toString());
+        formDataToSend.append('SkinCount', newAccount.value.skinCount.toString());
+        formDataToSend.append('Rank', newAccount.value.rank);
+        await addGameAccountAPI.addLol_Game(formDataToSend);
+        break;
+
+      case 'Tốc chiến':
+        formDataToSend.append('ChampionCount', newAccount.value.championCount.toString());
+        formDataToSend.append('SkinCount', newAccount.value.skinCount.toString());
+        formDataToSend.append('Rank', newAccount.value.rank);
+        await addGameAccountAPI.addTocChien_Game(formDataToSend);
+        break;
+
+      case 'Pubg':
+        formDataToSend.append('GunSkinCount', newAccount.value.gunSkinCount.toString());
+        formDataToSend.append('HumanSkinCount', newAccount.value.humanSkinCount.toString());
+        formDataToSend.append('Rank', newAccount.value.rank);
+        await addGameAccountAPI.addPubg_Game(formDataToSend);
+        break;
+
+      case 'Valorant':
+        formDataToSend.append('GunSkinCount', newAccount.value.gunSkinCount.toString());
+        formDataToSend.append('ChampionCount', newAccount.value.championCount.toString());
+        formDataToSend.append('Rank', newAccount.value.rank);
+        await addGameAccountAPI.addValorant_Game(formDataToSend);
+        break;
+
+      case 'Ngọc rồng online':
+        formDataToSend.append('Server', newAccount.value.server);
+        formDataToSend.append('Planet', newAccount.value.planet);
+        await addGameAccountAPI.addNgocRong_Game(formDataToSend);
+        break;
+
+      default:
+        openErrorModal('Game không hợp lệ.');
+        return;
+    }
+    closeAddAccountModal;
+    openSuccessModal(
+      'Thêm tài khoản thành công!',
+      'Tài khoản của bạn đã được thêm vào và đang chờ admin duyệt.'
+    );
+    await fetchAllPosts(false);
+    await fetchUserProfile(false);
+  } catch (error) {
+    console.error('Lỗi khi gọi API:', error);
+    openErrorModal('Có lỗi xảy ra khi thêm tài khoản.');
+  }
 };
-const fetchData = async () => {
+
+
+const fetchData = async (): Promise<void> => {
   loading.value = true;
   await new Promise((resolve) => setTimeout(resolve, 2000));
   loading.value = false;
 };
 
-const submitPost = async () => {
-  try {
-    if (!selectedGame.value) {
-      alert('Vui lòng chọn một trò chơi.');
-      return;
-    }
-
-    const formDataToSend = new FormData();
-
-    formDataToSend.append('GameName', selectedGame.value);
-    formDataToSend.append('AccountName', formData.value.accountName || '');
-    formDataToSend.append('Password', formData.value.password || '');
-    formDataToSend.append('Description', postText.value || '');
-    formDataToSend.append('Price', formData.value.price || '0');
-
-    imageFiles.value.forEach((file) => {
-      formDataToSend.append('Files', file);
-    });
-
-    switch (selectedGame.value) {
-      case 'Liên minh huyền thoại':
-        formDataToSend.append('ChampionCount', formData.value.championCount || '0');
-        formDataToSend.append('SkinCount', formData.value.skinCount || '0');
-        formDataToSend.append('Rank', formData.value.rank || '');
-        await addLol_Game(formDataToSend);
-        break;
-
-      case 'Tốc chiến':
-        formDataToSend.append('ChampionCount', formData.value.championCount || '0');
-        formDataToSend.append('SkinCount', formData.value.skinCount || '0');
-        formDataToSend.append('Rank', formData.value.rank || '');
-        await addTocChien_Game(formDataToSend);
-        break;
-
-      case 'Pubg':
-        formDataToSend.append('GunSkinCount', formData.value.gunSkinCount || '0');
-        formDataToSend.append('HumanSkinCount', formData.value.humanSkinCount || '0');
-        formDataToSend.append('Rank', formData.value.rank || '');
-        await addPubg_Game(formDataToSend);
-        break;
-
-      case 'Valorant':
-        formDataToSend.append('GunSkinCount', formData.value.gunSkinCount || '0');
-        formDataToSend.append('ChampionCount', formData.value.championCount || '0'); 
-        formDataToSend.append('Rank', formData.value.rank || '');
-        await addValorant_Game(formDataToSend);
-        break;
-
-      case 'Ngọc rồng':
-        formDataToSend.append('Server', formData.value.server || '');
-        formDataToSend.append('Planet', formData.value.planet || '');
-        await addNgocRong_Game(formDataToSend);
-        break;
-
-      default:
-        alert('Trò chơi không hợp lệ.');
-        return;
-    }
-    successModalVisible.value = true;
-    resetForm();
-    await fetchAllPosts();
-  } catch (error) {
-    console.error(error);
-    alert('Có lỗi xảy ra khi đăng bài.');
-  }
-};
-const getFullImageUrl = (imageString: string | null) => {
+const getFullImageUrl = (imageString: string | null): string => {
   if (!imageString) {
     return 'https://via.placeholder.com/550x500';
   }
@@ -502,47 +758,100 @@ const getFullImageUrl = (imageString: string | null) => {
   const firstImage = imageString.split(';')[0];
   return `${baseUrl}${firstImage}`;
 };
-const imageLoaded = (index: number) => {
-      loadingImages.value[index] = false;
-    };
-const removeImage = (index: number) => {
-  images.value.splice(index, 1);
-  imageFiles.value.splice(index, 1);
-};
 
-const handleImageUpload = (event: Event) => {
-  const files = (event.target as HTMLInputElement).files;
-  if (files) {
-    Array.from(files).forEach((file: File) => {
-      imageFiles.value.push(file);
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        if (e.target && e.target.result) {
-          images.value.push(e.target.result as string);
-        }
-      };
-      reader.readAsDataURL(file);
-    });
-  }
-};
 const filteredPosts = computed(() => {
-  let postsFilteredByGame = posts.value.filter(item => item.status !== 'Đang chờ duyệt');
+  let postsFiltered = posts.value.filter(
+    (item) => item.status !== 'Đang chờ duyệt'
+  );
 
   if (selectedGameFilter.value !== 'All') {
-    postsFilteredByGame = postsFilteredByGame.filter(post => post.gameName === selectedGameFilter.value);
+    postsFiltered = postsFiltered.filter(
+      (post) => post.gameName === selectedGameFilter.value
+    );
   }
 
   if (selectedStatusFilter.value !== 'All') {
-    postsFilteredByGame = postsFilteredByGame.filter(post => post.status === selectedStatusFilter.value);
+    postsFiltered = postsFiltered.filter(
+      (post) => post.status === selectedStatusFilter.value
+    );
   }
 
-  return postsFilteredByGame;
+  if (selectedOwnerFilter.value === 'Mine') {
+    postsFiltered = postsFiltered.filter(
+      (post) => post.userId === store.user?.id
+    );
+  }
+
+  postsFiltered.sort((a, b) => {
+    if (a.status === 'Đang bán' && b.status !== 'Đang bán') {
+      return -1;
+    }
+    if (a.status !== 'Đang bán' && b.status === 'Đang bán') {
+      return 1;
+    }
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
+  return postsFiltered;
 });
 
-const filterPostsByGame = (game: string) => {
-  selectedGameFilter.value = game;
+const totalPages = computed<number>(() => {
+  return Math.ceil(filteredPosts.value.length / itemsPerPage);
+});
+
+const paginatedPosts = computed<any[]>(() => {
+  const start = (currentPage.value - 1) * itemsPerPage;
+  const end = start + itemsPerPage;
+  return filteredPosts.value.slice(start, end);
+});
+
+const paginationRange = computed<Array<number | string>>(() => {
+  const range: Array<number | string> = [];
+  const total = totalPages.value;
+  const current = currentPage.value;
+  const delta = 2;
+
+  for (let i = 1; i <= total; i++) {
+    if (
+      i === 1 ||
+      i === total ||
+      (i >= current - delta && i <= current + delta)
+    ) {
+      range.push(i);
+    } else if (
+      i === current - delta - 1 ||
+      i === current + delta + 1
+    ) {
+      range.push('...');
+    }
+  }
+
+  const uniqueRange: Array<number | string> = [];
+  range.forEach((page) => {
+    if (page === '...' && uniqueRange[uniqueRange.length - 1] === '...') {
+      return;
+    }
+    uniqueRange.push(page);
+  });
+
+  return uniqueRange;
+});
+
+const goToPage = (page: number | string): void => {
+  if (page === '...') return;
+
+  if (typeof page === 'number') {
+    if (page < 1) {
+      currentPage.value = 1;
+    } else if (page > totalPages.value) {
+      currentPage.value = totalPages.value;
+    } else {
+      currentPage.value = page;
+    }
+  }
 };
-const fetchAllPosts = async () => {
+
+const fetchAllPosts = async (shouldHandleError: boolean = true): Promise<void> => {
   try {
     const [
       lolResponse,
@@ -594,813 +903,948 @@ const fetchAllPosts = async () => {
         }
         return {
           ...post,
-          fullName, 
+          fullName,
           images: post.image ? post.image.split(';') : [],
           createdAt: post.createdDate,
           updatedAt: post.updatedDate,
         };
       })
     );
-    const selectedStatusFilter = ref('All');
 
-const filterPostsByStatus = (status: string) => {
-  selectedStatusFilter.value = status;
-};
-
-const filteredPosts = computed(() => {
-  let postsFilteredByGame = posts.value;
-
-  if (selectedGameFilter.value !== 'All') {
-    postsFilteredByGame = postsFilteredByGame.filter(post => post.gameName === selectedGameFilter.value);
-  }
-
-  if (selectedStatusFilter.value !== 'All') {
-    postsFilteredByGame = postsFilteredByGame.filter(post => post.status === selectedStatusFilter.value);
-  }
-
-  return postsFilteredByGame;
-});
-
-    posts.value.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   } catch (error) {
     console.error('Error fetching posts:', error);
+    if (shouldHandleError) {
+      openErrorModal('Đã xảy ra lỗi khi lấy dữ liệu bài đăng.');
+    }
   }
 };
 
-onMounted(fetchAllPosts);
+const slides = ref([
+  {
+    image: 'https://cmsassets.rgpub.io/sanity/images/dsfx7636/game_data/031444bd205c751c4986f5f4bf0902993ccaeec8-1280x720.jpg',
+    alt: 'Promotion 1',
+    title: 'Khuyến mãi Đặc Biệt',
+    description: 'Giảm giá lên đến 50% cho các tài khoản mới!',
+  },
+  {
+    image: 'https://preview.redd.it/empyrean-akali-splash-art-v0-vn1gq9j6kwuc1.jpeg?width=1080&crop=smart&auto=webp&s=ae2153820c5fc71d49a990df26ad75311ca0261b',
+    alt: 'Promotion 2',
+    title: 'Mua Sớm Nhận Thêm Quà',
+    description: 'Nhận thêm coin khi mua tài khoản trong tuần này.',
+  },
+  {
+    image: 'https://i.vietgiaitri.com/2024/9/18/them-mot-bang-chung-chi-mang-cho-thay-aatrox-dang-la-vi-tuong-overrated-nhat-cua-riot-76d-7270064.webp',
+    alt: 'Promotion 3',
+    title: 'Tài Khoản Độc Quyền',
+    description: 'Mua ngay các tài khoản game hiếm có.',
+  },
+]);
 
-const handleClickOutside = (event: Event) => {
-  const menu = document.querySelector('.menu-container');
-  if (menu && !menu.contains(event.target as Node)) {
-    menuVisible.value = false;
-  }
+const currentSlide = ref(0);
+const nextSlide = () => {
+  currentSlide.value = (currentSlide.value + 1) % slides.value.length;
 };
+
+const prevSlide = () => {
+  currentSlide.value = (currentSlide.value - 1 + slides.value.length) % slides.value.length;
+};
+
+let slideInterval: number;
+const startSlideShow = () => {
+  slideInterval = window.setInterval(() => {
+    nextSlide();
+  }, 5000);
+};
+
+const stopSlideShow = () => {
+  clearInterval(slideInterval);
+};
+
+const mySellingAccounts = computed<number>(() => {
+  return posts.value.filter(post => post.userId === store.user?.id).length;
+});
 
 onMounted(async () => {
-  document.addEventListener('click', handleClickOutside);
   await fetchAllPosts();
+  await fetchUserProfile();
   store.init();
+  startSlideShow();
   fetchData();
 });
-onBeforeUnmount(() => {
-  document.removeEventListener('click', handleClickOutside);
+onUnmounted(() => {
+  stopSlideShow();
 });
 </script>
 
 <style scoped>
 .container {
   display: flex;
-  justify-content: center;
   align-items: flex-start;
+  justify-content: center; 
+  max-width: 1700px;
+  margin: 0 auto; 
   padding: 20px;
-  box-sizing: border-box;
-}
-.content-container {
-  margin-left: 20px;
-  display: flex;
-  flex-direction: row;
-  gap: 20px;
 }
 
-.post-container {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 15px;
-  width: 570px;
-  max-width: 100%;
-}
-
-.post-album-container {
+.sidebar {
   background-color: #ffffff;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
-  max-width: 600px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-.left-column {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  max-width: 570px;
-}
-.post-container,
-.post-album-container {
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  width: 250px;
   padding: 15px;
-  max-width: 100%;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  position: fixed;
+  top: 68px; 
+  left: 20px;
+  height: calc(100vh - 88px);
+  overflow-y: auto;
+  z-index: 100;
 }
+
+.sidebar h3 {
+  font-size: 18px;
+  font-weight: bold;
+  color: #333;
+  margin-bottom: 10px;
+}
+
+.game-list,
+.status-list,
+.owner-list { /* Include .owner-list with existing lists */
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.game-list li,
+.status-list li,
+.owner-list li { /* Include .owner-list li with existing lis */
+  font-size: 14px;
+  color: #0073b1;
+  cursor: pointer;
+  padding: 10px 15px;
+  border-radius: 8px;
+  transition: background-color 0.3s, color 0.3s; /* Smooth Transition */
+  margin-bottom: 5px;
+}
+
+.game-list li:hover,
+.status-list li:hover,
+.owner-list li:hover { /* Add hover for .owner-list li */
+  background-color: #e1f5fe;
+}
+
+.active {
+  background-color: #9dddff;
+  color: white;
+}
+
+/* Right Column Styles */
 .right-column {
-  width: 300px;
-  
+  width: 250px;
+  position: fixed; /* Fixed position */
+  top: 68px; /* Distance from top (assuming navbar height is 68px) */
+  right: 20px; /* Distance from right */
+  height: calc(100vh - 88px); /* Height to prevent overflow */
+  overflow-y: auto; /* Vertical scroll if content is long */
+  z-index: 100; /* Ensure right-column is above other elements */
+  background-color: #f9f9f9; /* Light background color */
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  padding: 20px;
 }
+
 .page-container {
   background-color: white;
   border-radius: 10px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   padding: 20px;
   text-align: center;
-  position: sticky;
-  top: 88px; 
 }
 
 .profile-header {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 20px;
-}
-.sidebar {
-  background-color: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  padding: 15px;
-  width: 300px;
-  position: sticky;
-  top: 88px; 
 }
 
-.sidebar h3 {
-  font-size: 18px;
-  color: #333;
-  margin-bottom: 10px;
-}
-
-.game-list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.game-list li {
-  font-size: 14px;
-  color: #0073b1;
-  cursor: pointer;
-  padding: 10px 0;
-  border-bottom: 1px solid #ddd;
-  transition: color 0.3s;
-}
-
-.game-list li:hover,
-.game-list li.active {
-  color: #005582;
-  font-weight: bold;
-}
-
-/* Post Album Section */
-.post-album-section {
-  flex-grow: 1;
-}
 .profile-header img {
-  width: 80px;
+  width: 80px; /* Increase avatar size */
   height: 80px;
   border-radius: 50%;
-  margin-bottom: 10px;
+  margin-bottom: 15px;
+  object-fit: cover;
+  border: 2px solid #0073b1; /* Border around avatar */
+  transition: transform 0.3s, box-shadow 0.3s; /* Add transition for effects */
+}
+
+.profile-header img:hover {
+  transform: scale(1.05); /* Slight zoom on hover */
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* Add shadow on hover */
 }
 
 .profile-header h2 {
-  font-size: 18px;
-  color: #333;
-  margin-bottom: 5px;
-}
-
-.profile-header p {
-  font-size: 12px;
-  color: #888;
-}
-
-.menu {
-  display: flex;
-  justify-content: space-around;
-  margin: 15px 0;
-}
-
-.menu-item {
-  font-size: 14px;
-  color: #666;
-  cursor: pointer;
-  transition: color 0.3s;
-}
-
-.menu-item:hover {
-  color: #ff5722;
-}
-
-.stats {
-  display: flex;
-  justify-content: center;
-  margin-top: 20px;
-}
-.post-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
-  border-bottom: 1px solid #ddd;
-  padding-bottom: 10px;
-  position: relative;
-}
-.stats button {
-  border: none;
-  padding: 10px 20px;
-  border-radius: 20px;
-  cursor: pointer;
-  font-size: 14px;
-  margin: 0 5px;
-}
-
-.stats .likes {
-  background-color: #ff5722;
-  color: white;
-}
-
-.stats .views {
-  background-color: #eee;
-  color: #666;
-}
-
-.likes-count {
-  font-size: 24px;
+  margin: 10px 0;
+  font-size: 15px; /* Increase font size */
   font-weight: bold;
-  color: #444;
-  margin: 15px 0 5px;
+  color: #333;
 }
 
-.new-likes {
-  font-size: 12px;
-  color: #888;
-}
-.submitted-info {
-  margin-top: 10px;
-  padding: 10px;
-  background-color: #f2f2f2;
-  border-radius: 5px;
-  border: 1px solid #ddd;
+.user-stats {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+  margin-top: 15px;
 }
 
-.info-item {
-  margin-bottom: 10px;
-}
-
-.info-item h3 {
-  font-size: 16px;
-  color: #0073b1;
-  margin-bottom: 5px;
-}
-
-.info-item p {
-  font-size: 14px;
-  color: #555;
-  margin: 2px 0;
-}
-
-.avatar {
-  width: 48px;
-  height: 48px;
-  border-radius: 50%;
-  margin-right: 12px;
-}
-
-.menu-container {
-  position: absolute; 
-  top: 0;
-  right: 0;
-}
-
-.menu-icon {
-  font-size: 18px;
-  color: #666;
-  cursor: pointer;
-  z-index: 1;
-}
-
-.dropdown-menu {
-  display: block;
-  position: absolute;
-  right: 0;
-  top: 30px;
-  background-color: white;
-  border: 1px solid #e1e4e8;
+.stat-card,
+.stat-card1 {
+  display: flex;
+  align-items: center;
+  background-color: #eef6fb; /* Light background for cards */
+  padding: 5px 10px;
   border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
-  width: 250px;
-  z-index: 10000;
-  overflow: hidden;
-}
-.dropdown-menu ul {
-  list-style: none;
-  margin: 0;
-  padding: 5px 0;
+  transition: background-color 0.3s, transform 0.3s, box-shadow 0.3s;
 }
 
-.dropdown-menu li {
-  padding: 12px 20px;
-  cursor: pointer;
-  font-size: 14px;
-  color: #333;
-  transition: background-color 0.2s, color 0.2s;
-  display: flex;
-  align-items: center;
+.stat-card1 {
+  justify-content: space-between; /* Space between elements */
 }
 
-.dropdown-menu li:hover {
-  background-color: #f5f5f5;
+.stat-card i,
+.stat-card1 i {
+  font-size: 15px;
   color: #0073b1;
+  margin-right: 10px;
 }
 
-.drop-item:last-child {
-  border-bottom: none;
-}
-.post-content {
-  display: flex;
-  margin-bottom: 15px;
-}
-.post-input {
-  width: 100%;
-  outline: none;
-  color: #666;
-  font-size: 16px;
-  padding: 10px;
-  border: none;
-  border-radius: 5px;
-  transition: all 0.3s ease;
-}
-
-.post-input::placeholder {
-  color: #bbb;
-}
-
-.icon-group label {
-  font-size: 38px;
-  color: #999;
-  cursor: pointer;
-  transition: color 0.3s;
-}
-
-.icon-group label:hover {
-  color: #267fde;
-}
-
-.image-input {
-  display: none;
-}
-
-.image-preview {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 10px;
-  margin-bottom: 9px;
-}
-
-.thumbnail {
-  width: 60px;
-  height: 60px;
-  object-fit: cover;
-  border-radius: 5px;
-  border: 1px solid #ddd;
-}
-
-.post-button {
-  width: 100%;
-  background-color: #4498f1;
-  color: white;
-  border: none;
-  padding: 5px;
-  height: 30px;
-  border-radius: 50px;
+.stat-card span,
+.stat-card1 span {
   font-size: 12px;
-  cursor: pointer;
-  transition: background-color 0.3s ease;
-}
-
-.post-button:hover {
-  background-color: #0872e2;
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  margin-bottom: 8px;
-}
-
-.user-details {
-  font-size: 14px;
   color: #333;
-}
-
-.user-name {
-  font-weight: bold;
-  color: #0a66c2;
-}
-
-.post-type {
-  color: #555;
-}
-
-.post-date {
-  font-size: 12px;
-  color: #999;
-}
-.price-item{
-  color: #006bdd;
   font-weight: 500;
-  display: flex;
-  justify-content: center;
-}
-.post-content p {
-  font-size: 14px;
-  color: #333;
-  margin-bottom: 12px;
 }
 
-.post-images {
-  display: flex;
-  flex-direction: wrap;
-  gap: 5px;
+.stat-card:hover,
+.stat-card1:hover {
+  background-color: #dceefc;
+  transform: translateY(-3px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.deposit-link {
+  color: #0073b1;
+  text-decoration: none;
+  font-size: 15px;
+}
+
+.deposit-link:hover {
+  color: #005a8c;
+}
+
+.stats-button-container {
   margin-top: 10px;
 }
 
-.image-row {
-  display: flex;
-  gap: 5px;
-  margin-bottom: 5px;
-}
-.image-item {
-  width: calc(50% - 2.5px);
-  height: 200px;
-  object-fit: cover;
-  border-radius: 4px;
-}
-
-.game-attributes {
-  font-size: 14px;
-  color: #555;
-  margin-top: 12px;
-}
-
-.post-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 15px;
-  padding: 10px 0; 
-  border-top: 1px solid #ddd;
-  border-bottom: 1px solid #ddd;
-  height: 30px;
-}
-
-.reactions {
+.stats-button {
   display: flex;
   align-items: center;
-  justify-content: space-evenly;
-  flex: 1;
-}
-
-.reaction {
-  font-size: 28px;
-  color: #606770;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.reaction:hover {
-  color: #1877f2;
-}
-
-.post-image {
-  width: calc(50% - 2.5px);
-  border-radius: 5px;
-}
-.image-grid {
-  display: grid;
-  gap: 5px;
-  border-radius: 5px;
-  overflow: hidden;
-}
-
-.image-grid.single-image {
-  grid-template-columns: 1fr;
-}
-
-.image-grid.two-images {
-  grid-template-columns: 1fr 1fr;
-}
-
-.image-grid.three-images {
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: 1fr 1fr;
-}
-
-.image-grid.multiple-images {
-  grid-template-columns: repeat(2, 1fr);
-  grid-template-rows: repeat(2, 1fr);
-}
-
-.image-item {
-  width: 100%;
-  height: auto;
-  object-fit: cover;
-  border-radius: 4px;
-}
-.more-images-overlay {
-  position: relative;
-  width: calc(50% - 2.5px);
-  border-radius: 5px;
-  overflow: hidden;
-  display: flex;
   justify-content: center;
-  align-items: center;
-  background: rgba(255, 87, 34, 0.8);
-  color: white;
-  font-size: 24px;
-  font-weight: bold;
-}
-
-.post-footer {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-top: 15px;
-}
-
-.reactions {
-  display: flex;
-  gap: 10px;
-}
-
-.reaction {
+  background-color: #0073b1;
+  color: #ffffff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  text-decoration: none;
   font-size: 14px;
-  color: #555;
+  transition: background-color 0.3s, transform 0.2s;
 }
 
-.liked-by {
+.stats-button:hover {
+  background-color: #005a8c;
+  transform: translateY(-2px);
+}
+
+.stats-button i {
+  margin-right: 5px;
+}
+
+/* Content Container Styles */
+.content-container {
+  flex-grow: 1;
+  margin: 0 340px; /* Left and right: 250px width + 20px spacing */
   display: flex;
-  align-items: center;
-  gap: 5px;
+  flex-direction: column;
+  max-width: 1200px; /* Adjust as needed */
 }
 
-.liked-avatar {
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  border: 1px solid #ddd;
+.left-column {
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
 }
+
+.left-column h2 {
+  font-size: 29px;
+  color: #333;
+}
+
+/* Modal Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background: rgba(0, 0, 0, 0.5); /* Semi-transparent black */
+  background-color: rgba(0, 0, 0, 0.5); /* Slightly darker background */
   display: flex;
   justify-content: center;
   align-items: center;
-  z-index: 1000; /* Ensure it appears on top */
+  z-index: 1000;
 }
 
-/* Modal content: card-like box with padding and rounded corners */
 .modal-content {
-  background-color: #ffffff; /* White background */
-  border-radius: 8px; /* Rounded corners */
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1); /* Soft shadow for depth */
-  padding: 24px;
-  max-width: 500px;
-  width: 90%; /* Responsive width */
-  text-align: center;
+  background-color: #ffffff;
+  padding: 30px;
+  width: 500px; /* Adjust width to be consistent */
+  border-radius: 8px; /* Slightly less rounded corners */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  position: relative;
+  animation: fadeIn 0.3s ease-out;
 }
 
-/* Success icon: LinkedIn blue and centered */
-.success-icon {
-  font-size: 40px;
-  color: #0073b1; /* LinkedIn blue color */
-  margin-bottom: 16px;
-}
-
-/* Heading styling */
+/* LinkedIn-like Typography */
 .modal-content h2 {
-  font-size: 24px;
+  margin-bottom: 20px;
+  font-size: 20px;
+  color: #0073b1;
+  text-align: center;
   font-weight: 600;
-  margin: 0 0 10px;
-  color: #333333; /* Dark text color */
 }
 
-/* Paragraph text styling */
 .modal-content p {
-  font-size: 16px;
-  color: #666666; /* Gray text color */
+  font-size: 14px;
+  color: #333;
+  text-align: center;
   margin-bottom: 20px;
 }
 
-/* Modal buttons: LinkedIn-style button */
 .modal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+}
+
+.modal-buttons button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.confirm-button {
+  background-color: #0073b1;
+  color: #ffffff;
+}
+
+.confirm-button:hover {
+  background-color: #005580;
+}
+
+.cancel-button {
+  background-color: #e0e0e0;
+  color: #333333;
+}
+
+.cancel-button:hover {
+  background-color: #c0c0c0;
+}
+
+/* Success Modal */
+.success-modal .modal-content {
   text-align: center;
 }
 
-.close-button {
-  background-color: #0073b1; /* LinkedIn blue color */
+.success-modal .success-icon {
+  font-size: 40px;
+  color: #28a745;
+  margin-bottom: 10px;
+}
+
+/* Error Modal */
+.error-modal .modal-content {
+  text-align: center;
+}
+
+.error-modal .error-icon {
+  font-size: 40px;
+  color: #dc3545;
+  margin-bottom: 10px;
+}
+
+/* Insufficient Funds Modal */
+.deposit-button {
+  background-color: #0073b1;
   color: #ffffff;
   border: none;
   padding: 10px 20px;
   border-radius: 4px;
   font-size: 14px;
-  font-weight: 500;
   cursor: pointer;
   transition: background-color 0.3s;
 }
 
-.close-button:hover {
-  background-color: #005582; /* Darker blue on hover */
+.deposit-button:hover {
+  background-color: #005580;
 }
 
-.modal-content {
-  background-color: white;
-  padding: 24px;
-  width: 450px;
-  max-width: 90%;
-  border-radius: 8px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-  font-family: "Helvetica", "Arial", sans-serif;
-}
+/* Add Account Modal */
+.new-modal-overlay { 
+  position: fixed; 
+  top: 0; 
+  left: 0; 
+  width: 100%; 
+  height: 100%; 
+  background-color: rgba(0, 0, 0, 0.5); /* Slightly darker background */ 
+  display: flex; 
+  justify-content: center; 
+  align-items: center; 
+  z-index: 1000; 
+  overflow-y: auto; /* Enable vertical scrolling */ 
+} 
 
-.modal-content h2 {
-  margin-bottom: 16px;
-  font-size: 20px;
-  color: #333;
-  text-align: center;
-}
+/* Modal content styling */ 
+.new-modal-content { 
+  background-color: #ffffff; 
+  padding: 30px; 
+  max-width: 700px; /* Larger width for modal */ 
+  width: 90%; /* Responsive width */ 
+  max-height: 80vh; /* Limit modal height */ 
+  overflow-y: auto; /* Scroll within modal if content exceeds height */ 
+  border-radius: 8px; 
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); 
+  animation: fadeIn 0.3s ease-out; 
+  display: flex; 
+  flex-direction: column; 
+} 
 
-.modal-content form div {
-  margin-bottom: 12px;
-}
-
-.modal-content label {
+/* Modal header styling */ 
+.new-modal-content h2 { 
+  margin-bottom: 20px; 
+  font-size: 20px; 
+  color: #0073b1; 
+  text-align: center; 
   font-weight: 600;
-  font-size: 14px;
-  color: #555;
-  margin-bottom: 4px;
-  display: block;
-}
+} 
 
-.modal-content input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  font-size: 14px;
-  color: #333;
-  transition: border-color 0.2s;
-}
+/* Form styling */ 
+.new-form-group { 
+  display: flex; 
+  flex-direction: column; 
+  margin-bottom: 15px;
+} 
 
-.modal-content input:focus {
-  border-color: #0073b1;
+/* Label styling */ 
+.new-form-group label { 
+  font-weight: 600; 
+  margin-bottom: 5px; 
+  color: #333; 
+} 
+
+/* Input and select styling */ 
+.new-form-group input, .new-form-group select { 
+  padding: 10px 12px; 
+  font-size: 14px; 
+  border: 1px solid #ccc; 
+  border-radius: 4px; 
+  transition: border-color 0.3s; 
+} 
+
+.new-form-group input:focus, .new-form-group select:focus { 
+  border-color: #0073b1; /* Highlight on focus */ 
   outline: none;
+} 
+
+/* Image upload button styling */ 
+.new-image-input { 
+  display: none; 
+} 
+
+.new-label-image-upload { 
+  display: inline-flex; 
+  align-items: center; 
+  color: #0073b1; 
+  cursor: pointer; 
+  margin-top: 10px; 
+  font-size: 14px;
+} 
+
+.new-label-image-upload i { 
+  margin-right: 5px; 
+  font-size: 18px; 
 }
 
-.modal-buttons {
+/* Image Preview Styles */
+.selected-images {
   display: flex;
-  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 10px;
-  margin-top: 16px;
-}
-
-.modal-buttons button {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.modal-buttons button[type="submit"] {
-  background-color: #0073b1;
-  color: white;
-}
-
-.modal-buttons button[type="button"] {
-  background-color: #e6e6e6;
-  color: #333;
-}
-.input-container {
-  position: relative;
-  margin-bottom: 16px;
-}
-
-.linkedin-input {
-  width: 40%;
-  padding: 10px 14px;
-  border: 1px solid #dce6f1;
-  border-radius: 4px;
-  background-color: #fff;
-  font-size: 14px;
-  color: #333;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-  box-sizing: border-box;
-}
-
-.linkedin-input:focus {
-  border-color: #0073b1;
-  box-shadow: 0 0 0 1px #0073b1;
-}
-@media (max-width: 1024px) {
-  .content-container {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .post-container,
-  .post-album-container,
-  .page-container {
-    width: 90%;
-    margin-left: 0;
-  }
-}
-
-@media (max-width: 768px) {
-  .content-container {
-    flex-direction: column;
-    align-items: center;
-    gap: 15px;
-  }
-
-  .post-container,
-  .post-album-container,
-  .page-container {
-    width: 100%;
-    margin-left: 0;
-  }
-
-  .post-input {
-    font-size: 14px;
-    padding: 8px;
-  }
-
-  .stats button {
-    padding: 8px 15px;
-    font-size: 12px;
-  }
-
-  .post-button {
-    height: 40px;
-    font-size: 14px;
-  }
-}
-.post-album-container {
-  position: relative; /* Ensures the status badge is positioned correctly */
-  background-color: #ffffff;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 16px;
-  margin-bottom: 16px;
-  max-width: 600px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-/* Status Badge Styling */
-.status-badge {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 12px;
-  font-weight: bold;
-  color: white;
-}
-
-/* Colors for Status */
-.status-selling {
-  background-color: #4caf50; /* Green for 'Đang bán' */
-}
-
-.status-sold {
-  background-color: #f44336; /* Red for 'Đã bán' */
-}
-.status-list {
-  list-style: none;
-  padding: 0;
   margin-top: 10px;
 }
 
-.status-list li {
-  font-size: 14px;
-  color: #0073b1;
-  cursor: pointer;
-  padding: 10px 0;
-  border-bottom: 1px solid #ddd;
-  transition: color 0.3s;
+.selected-image {
+  position: relative;
+  width: 80px;
+  height: 80px;
 }
 
-.status-list li:hover,
-.status-list li.active {
-  color: #005582;
+.selected-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 4px;
+}
+
+.remove-image-button {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background-color: #dc3545;
+  border: none;
+  color: #ffffff;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
   font-weight: bold;
 }
 
+.remove-image-button:hover {
+  background-color: #c82333;
+}
+
+/* Modal buttons styling */
+.new-modal-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+/* Confirm button styling */
+.new-confirm-button {
+  padding: 10px 25px;
+  background-color: #0073b1;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.new-confirm-button:hover {
+  background-color: #005580;
+}
+
+/* Cancel button styling */
+.new-cancel-button {
+  padding: 10px 25px;
+  background-color: #dc3545;
+  color: #ffffff;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.new-cancel-button:hover {
+  background-color: #c82333;
+}
+
+/* Post Grid Styles */
+.post-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.post-album-container {
+  position: relative;
+  background-color: #ffffff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 12px;
+  height: 330px;
+  width: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.post-album-container:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.status-badge {
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  padding: 6px 12px;
+  border-radius: 3px;
+  font-size: 7px;
+  font-weight: bold;
+  color: #ffffff;
+  background-color: #28a745;
+  z-index: 1;
+  opacity: 0.95;
+  transition: transform 0.3s ease, opacity 0.3s ease;
+  display: flex;
+  align-items: center;
+}
+
+.status-selling {
+  background-color: #0073b1;
+}
+
+.status-sold {
+  background-color: #dc3545;
+}
+
+.status-badge:hover {
+  transform: scale(1.05);
+  opacity: 1;
+}
+
+.status-badge i {
+  font-size: 12px;
+  margin-right: 3px;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+}
+
+.user-details {
+  font-size: 12px;
+  color: #0073b1;
+  line-height: 1.2;
+  font-weight: 700;
+  display: flex;
+}
+
+.post-type {
+  font-weight: bold;
+}
+
+.post-images {
+  margin-top: 8px;
+  position: relative;
+}
+
+.image-item {
+  width: 100%;
+  height: 120px;
+  object-fit: cover;
+  border-radius: 4px;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.image-item:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.game-attributes {
+  font-size: 12px;
+  color: #555;
+  margin-top: 8px;
+}
+
+.game-attributes p {
+  margin: 2px 0;
+}
+
+.price-item {
+  color: #0073b1;
+  font-weight: 700;
+  text-align: end;
+  font-size: 14px;
+}
+
+.post-footer {
+  display: flex;
+  justify-content: end;
+  align-items: center;
+  padding-top: 8px;
+}
+
+.reactions {
+  display: flex;
+  justify-content: center;
+}
+
+.reaction-button {
+  display: flex;
+  align-items: center;
+  padding: 8px 12px;
+  background-color: #0073b1;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.2s;
+}
+
+.reaction-button:hover {
+  background-color: #005580;
+}
+
+.reaction-button:active {
+  transform: scale(0.98); /* Press effect */
+}
+
+.reaction-button i {
+  font-size: 14px;
+  margin-right: 5px;
+}
+
+/* Pagination Styles */
+.pagination {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+
+.pagination-button {
+  padding: 8px 12px;
+  background-color: #ffffff;
+  border: 1px solid #0073b1;
+  color: #0073b1;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+.pagination-button:hover {
+  background-color: #0073b1;
+  color: #ffffff;
+}
+
+.pagination-button:disabled {
+  background-color: #e0e0e0;
+  color: #aaa;
+  cursor: not-allowed;
+}
+
+.pagination-button.active {
+  background-color: #0073b1;
+  color: #ffffff;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .post-album-container {
+    width: calc(50% - 10px);
+  }
+
+  .container {
+    flex-direction: column;
+    align-items: center;
+    padding: 10px; /* Change padding for small screens */
+  }
+
+  .sidebar,
+  .right-column {
+    width: 100%;
+    max-width: 600px;
+    margin-bottom: 20px;
+    position: static; /* Remove fixed on small screens */
+    height: auto;
+    overflow-y: visible;
+  }
+
+  .content-container {
+    max-width: 100%;
+    margin: 0; /* No left and right margin */
+  }
+
+  .modal-content {
+    width: 90%;
+    padding: 20px;
+  }
+
+  .modal-content h2 {
+    font-size: 18px;
+  }
+
+  .modal-buttons button {
+    font-size: 12px;
+  }
+
+  /* Adjust status-badge for smaller screens */
+  .status-badge {
+    top: 8px;
+    right: 8px;
+    padding: 4px 8px;
+    font-size: 10px;
+    border-radius: 10px;
+  }
+
+  .status-badge i {
+    font-size: 10px;
+    margin-right: 3px;
+  }
+
+  /* Add styles for owner filter on small screens */
+  .owner-list li {
+    font-size: 12px;
+    padding: 8px 12px;
+  }
+
+  /* Adjust profile section on small screens */
+  .profile-header img {
+    width: 60px;
+    height: 60px;
+  }
+
+  .profile-header h2 {
+    font-size: 18px;
+  }
+
+  .stat-card span,
+  .stat-card1 span {
+    font-size: 14px;
+  }
+
+  .stats-button {
+    font-size: 14px;
+    padding: 8px 12px;
+  }
+
+  /* Carousel adjustments */
+  .banner-carousel {
+    height: 200px;
+  }
+
+  .carousel-caption h3 {
+    font-size: 1.2em;
+  }
+
+  .carousel-caption p {
+    font-size: 0.9em;
+  }
+}
+
+.banner-carousel {
+  position: relative;
+  width: 100%;
+  max-width: 1200px;
+  height: 300px;
+  margin: 0 auto 20px auto;
+  overflow: hidden;
+  border-radius: 10px;
+}
+
+.carousel-slide {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+}
+
+.carousel-slide.active {
+  opacity: 1;
+}
+
+.carousel-slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.carousel-caption {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #fff;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 10px 20px;
+  border-radius: 5px;
+  text-align: center;
+}
+
+.carousel-caption h3 {
+  margin: 0;
+  font-size: 1.5em;
+}
+
+.carousel-caption p {
+  margin: 5px 0 0 0;
+  font-size: 1em;
+}
+
+.carousel-button {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(0,0,0,0.5);
+  border: none;
+  color: #fff;
+  padding: 10px;
+  cursor: pointer;
+  border-radius: 50%;
+  font-size: 1.2em;
+  transition: background-color 0.3s;
+}
+
+.carousel-button:hover {
+  background-color: rgba(0,0,0,0.8);
+}
+
+.carousel-button.prev {
+  left: 10px;
+}
+
+.carousel-button.next {
+  right: 10px;
+}
+
+/* Responsive adjustments for carousel */
+@media (max-width: 768px) {
+  .banner-carousel {
+    height: 200px;
+  }
+
+  .carousel-caption h3 {
+    font-size: 1.2em;
+  }
+
+  .carousel-caption p {
+    font-size: 0.9em;
+  }
+}
 </style>

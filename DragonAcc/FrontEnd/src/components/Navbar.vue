@@ -39,12 +39,6 @@
                 </a>
               </li>
               <li class="nav-item">
-                <a class="nav-link text-center" href="/chatbot">
-                  <i class="fas fa-comment-dots"></i>
-                  <div class="nav-text">Nhắn tin</div>
-                </a>
-              </li>
-              <li class="nav-item">
                 <a class="nav-link text-center" href="/notification">
                   <i class="fas fa-bell"></i>
                   <div class="nav-text">Thông báo</div>
@@ -61,6 +55,7 @@
                   <li><a class="dropdown-item admin-dropdown-item" href="#">Quản lý thông báo</a></li>
                   <li><a class="dropdown-item admin-dropdown-item" href="/admin">Quản lý tài khoản</a></li>
                   <li><a class="dropdown-item admin-dropdown-item" href="/adminmanagedeposit">Quản lý nạp thẻ</a></li>
+                  <li><a class="dropdown-item admin-dropdown-item" href="/adminmanagewithdraw">Quản lý rút tiền</a></li>
                 </ul>
               </li>                           
               <li class="nav-item">
@@ -93,19 +88,13 @@
                     <div class="dropdown-item"><span class="badge bg-warning text-dark">Dùng thử 1 tháng Premium</span></div>
                     <a class="dropdown-item" href="/purchased">Lịch sử giao dịch</a>
                     <a class="dropdown-item" href="/deposit">Nạp tiền</a>
+                    <a class="dropdown-item" href="/withdrawmoney">Rút tiền</a>
                     <li class="nav-item">
                       <a class="nav-link text-center" href="#">
                         <i class="fas fa-globe"></i>
                         <div class="nav-text">Ngôn ngữ</div>
                       </a>
                     </li>
-                  </div>
-                  <hr class="dropdown-divider" />
-                  <!-- Manage Section -->
-                  <div class="dropdown-section">
-                    <div class="dropdown-item"><strong>Quản lý</strong></div>
-                    <a class="dropdown-item" href="#">Bài đăng và hoạt động</a>
-                    <a class="dropdown-item" href="#">Tài khoản đăng tin tuyển dụng</a>
                   </div>
                   <hr class="dropdown-divider" />
                   <!-- Logout -->

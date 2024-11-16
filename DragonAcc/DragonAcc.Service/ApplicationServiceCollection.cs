@@ -44,6 +44,9 @@ namespace DragonAcc.Service
             services.AddScoped<ILuckyWheelListPrizeService, LuckyWheelListPrizeService>();
             services.AddScoped<ILuckyWheelService, LuckyWheelService>();
             services.AddScoped<IAuctionService, AuctionService>();
+            services.AddScoped<IWithDrawMoneyService, WithDrawMoneyService>();
+            services.AddScoped<IStatisticalService, StatisticalService>();
+            services.AddScoped<INotificationService, NotificationService>();
             #endregion
             return services;
         }

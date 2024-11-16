@@ -11,7 +11,6 @@ namespace DragonAcc.Service.Models.Pubg_GameModel
         public int? GunSkinCount { get; set; }
         public int? HumanSkinCount { get; set; }
         public string? Rank { get; set; }
-        public string? Description { get; set; }
         public decimal? Price { get; set; }
         public List<IFormFile>? Files { get; set; }
     }

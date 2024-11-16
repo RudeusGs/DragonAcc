@@ -4,20 +4,26 @@ using DragonAcc.Infrastructure.Entities.GameInfoDetail;
 using DragonAcc.Service.Common.IServices;
 using DragonAcc.Service.Interfaces;
 using DragonAcc.Service.Models;
-using DragonAcc.Service.Models.Lol_GameModel;
 using DragonAcc.Service.Models.NgocRong_GameModel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace DragonAcc.Service.Services
 {
     public class NgocRong_GameService : BaseService, INgocRong_GameService
     {
         private readonly IFtpDirectoryService _ftpDirectoryService;
-        public NgocRong_GameService(DataContext dataContext, IFtpDirectoryService ftpDirectoryService, IUserService userService) : base(dataContext, userService)
+
+        public NgocRong_GameService(DataContext dataContext, IFtpDirectoryService ftpDirectoryService, IUserService userService)
+            : base(dataContext, userService)
         {
             _ftpDirectoryService = ftpDirectoryService;
         }
+
         private async Task<List<string>> UploadFiles(int? accountId, List<IFormFile>? files)
         {
             var uploadedFilePaths = new List<string>();
@@ -45,13 +51,14 @@ namespace DragonAcc.Service.Services
 
             return uploadedFilePaths;
         }
+
         public async Task<ApiResult> AddForUser(AddNgocRong_GameModel model)
         {
             var gameAccount = await _dataContext.NgocRong_Games.FirstOrDefaultAsync(x => x.AccountName == model.AccountName);
 
             if (gameAccount == null)
             {
-                using var tran = _dataContext.Database.BeginTransaction();
+                using var tran = await _dataContext.Database.BeginTransactionAsync();
                 try
                 {
                     var newGameAccount = new NgocRong_Game
@@ -62,11 +69,10 @@ namespace DragonAcc.Service.Services
                         Server = model.Server,
                         Price = model.Price,
                         Planet = model.Planet,
-                        Description = model.Description,
                         Status = "Đang chờ duyệt",
                         NoYetMoney = false,
                         UserId = _userService.UserId,
-                        CreatedDate = _now
+                        CreatedDate = DateTime.UtcNow
                     };
 
                     _dataContext.NgocRong_Games.Add(newGameAccount);
@@ -83,16 +89,16 @@ namespace DragonAcc.Service.Services
 
                     await _dataContext.SaveChangesAsync();
                     await tran.CommitAsync();
-                    return new(newGameAccount);
+                    return new ApiResult(newGameAccount);
                 }
                 catch (Exception e)
                 {
                     await tran.RollbackAsync();
-                    throw new Exception(e.Message);
+                    return new ApiResult { Message = $"Error: {e.Message}" };
                 }
             }
 
-            return new()
+            return new ApiResult
             {
                 Message = "Tài khoản này đã tồn tại! Vui lòng nhập thêm tài khoản khác."
             };
@@ -100,36 +106,36 @@ namespace DragonAcc.Service.Services
 
         public async Task<ApiResult> DeleteForUserAndAdmin(int id)
         {
-            var gameaccount = await _dataContext.NgocRong_Games.FirstOrDefaultAsync(x => x.Id == id);
-            if (gameaccount != null)
+            var gameAccount = await _dataContext.NgocRong_Games.FirstOrDefaultAsync(x => x.Id == id);
+            if (gameAccount != null)
             {
                 using var tran = await _dataContext.Database.BeginTransactionAsync();
                 try
                 {
-                    _dataContext.NgocRong_Games.Remove(gameaccount);
+                    _dataContext.NgocRong_Games.Remove(gameAccount);
                     await _dataContext.SaveChangesAsync();
                     await tran.CommitAsync();
-                    return new();
+                    return new ApiResult();
                 }
                 catch (Exception e)
                 {
                     await tran.RollbackAsync();
-                    throw new Exception(e.Message);
+                    return new ApiResult { Message = $"Error: {e.Message}" };
                 }
             }
-            return new ApiResult() { Message = "Không tìm thấy tài khoản này." };
+            return new ApiResult { Message = "Không tìm thấy tài khoản này." };
         }
 
         public async Task<ApiResult> GetAll()
         {
             var result = await _dataContext.NgocRong_Games.ToListAsync();
-            return new(result);
+            return new ApiResult(result);
         }
 
         public async Task<ApiResult> GetById(int id)
         {
             var result = await _dataContext.NgocRong_Games.FirstOrDefaultAsync(x => x.Id == id);
-            return new(result);
+            return new ApiResult(result);
         }
 
         public async Task<ApiResult> UpdateForUser(UpdateNgocRong_GameModel model)
@@ -145,9 +151,9 @@ namespace DragonAcc.Service.Services
                     gameAccount.Password = model.Password ?? gameAccount.Password;
                     gameAccount.Server = model.Server ?? gameAccount.Server;
                     gameAccount.Planet = model.Planet ?? gameAccount.Planet;
-                    gameAccount.Description = model.Description ?? gameAccount.Description;
                     gameAccount.Price = model.Price ?? gameAccount.Price;
-                    gameAccount.UpdatedDate = _now;
+                    gameAccount.UpdatedDate = DateTime.UtcNow;
+
                     if (model.Files != null && model.Files.Any())
                     {
                         var fileUploads = await UploadFiles(gameAccount.Id, model.Files);
@@ -162,16 +168,16 @@ namespace DragonAcc.Service.Services
                     await _dataContext.SaveChangesAsync();
                     await tran.CommitAsync();
 
-                    return new() { Message = "Cập nhật thành công!" };
+                    return new ApiResult { Message = "Cập nhật thành công!" };
                 }
                 catch (Exception e)
                 {
                     await tran.RollbackAsync();
-                    throw new Exception(e.Message);
+                    return new ApiResult { Message = $"Error: {e.Message}" };
                 }
             }
 
-            return new() { Message = "Không tìm thấy tài khoản game này." };
+            return new ApiResult { Message = "Không tìm thấy tài khoản game này." };
         }
 
         public async Task<ApiResult> UpdateForAdmin(int id)
@@ -188,39 +194,81 @@ namespace DragonAcc.Service.Services
                         gameAccount.Status = "Đang bán";
                         gameAccount.PasswordChanged = RandomPasswordChangeService.GenerateRandomString();
                         gameAccount.AdminUpdate = _userService.UserId;
+
+                        var statistical = await _dataContext.Statisticals.FirstOrDefaultAsync(s => s.UserId == gameAccount.UserId);
+
+                        if (statistical != null)
+                        {
+                            statistical.CountAccount = (statistical.CountAccount ?? 0) + 1;
+                            statistical.UnSoldAccount = (statistical.UnSoldAccount ?? 0) + 1;
+                        }
+                        else
+                        {
+                            statistical = new Statistical
+                            {
+                                UserId = gameAccount.UserId,
+                                CountAccount = 1,
+                                UnSoldAccount = 1,
+                                TotalDeposit = 0m,
+                                AccountSold = 0,
+                                TotalWithDraw = 0m
+                            };
+                            _dataContext.Statisticals.Add(statistical);
+                        }
+                        var notification = new Notification
+                        {
+                            UserIdSend = _userService.UserId,
+                            UserId = gameAccount.UserId,
+                            Content = "Tài khoản của bạn đã được duyệt.",
+                            IsRead = false,
+                            CreatedDate = DateTime.Now,
+                        };
+
+                        _dataContext.Notifications.Add(notification);
                     }
                     else
                     {
-                        return new() { Message = "Lỗi trạng thái không dúng" };
+                        return new ApiResult { Message = "Lỗi trạng thái không đúng." };
                     }
+
                     await _dataContext.SaveChangesAsync();
                     await tran.CommitAsync();
 
-                    return new() { Message = "Duyệt thành công" };
+                    return new ApiResult
+                    {
+                        Data = new { Message = "Duyệt tài khoản thành công." }
+                    };
                 }
                 catch (Exception e)
                 {
                     await tran.RollbackAsync();
-                    throw new Exception(e.Message);
+                    return new ApiResult { Message = $"Error: {e.Message}" };
                 }
             }
 
-            return new() { Message = "Không tìm thấy tài khoản game này." };
+            return new ApiResult { Message = "Không tìm thấy tài khoản game này." };
         }
+
         public async Task<ApiResult> GetFullName(int id)
         {
             var game = await _dataContext.NgocRong_Games.FirstOrDefaultAsync(x => x.Id == id);
+            if (game == null)
+            {
+                return new ApiResult { Message = "Game account not found." };
+            }
 
             var user = await _dataContext.Users.FirstOrDefaultAsync(u => u.Id == game.UserId);
-            return new(user.FullName);
+            return user != null ? new ApiResult(user.FullName) : new ApiResult { Message = "User not found." };
         }
+
         public async Task<ApiResult> GetAllByUser(int userId)
         {
             var result = await _dataContext.NgocRong_Games
                .Where(x => x.UserId == userId)
                .ToListAsync();
-            return new(result);
+            return new ApiResult(result);
         }
+
         public async Task<ApiResult> BuyGameAccount(BuyAccountNgocRong_GameModel model)
         {
             if (model.Id == null)
@@ -239,13 +287,13 @@ namespace DragonAcc.Service.Services
                 return new ApiResult { Message = "Tài khoản này đã bán." };
             }
 
-            var user = await _dataContext.Users.FirstOrDefaultAsync(x => x.Id == model.UserId);
-            if (user == null)
+            var buyer = await _dataContext.Users.FirstOrDefaultAsync(x => x.Id == model.UserId);
+            if (buyer == null)
             {
                 return new ApiResult { Message = "User not found." };
             }
 
-            if (!decimal.TryParse(user.Balance, out decimal userBalance))
+            if (!decimal.TryParse(buyer.Balance, out decimal buyerBalance))
             {
                 return new ApiResult { Message = "Số dư của người dùng không hợp lệ." };
             }
@@ -257,21 +305,29 @@ namespace DragonAcc.Service.Services
 
             decimal accountPrice = gameAccount.Price.Value;
 
-            if (userBalance < accountPrice)
+            if (buyerBalance < accountPrice)
             {
                 return new ApiResult { Message = "Số dư không đủ để mua tài khoản này." };
             }
 
             if (gameAccount.UserId == _userService.UserId)
             {
-                return new ApiResult { Message = "Bạn không thể mua tài khoản của chính mình" };
+                return new ApiResult { Message = "Bạn không thể mua tài khoản của chính mình." };
             }
+
             if (gameAccount.Status == "Đang chờ duyệt")
             {
-                return new ApiResult { Message = "Tài khoản này chưa duyệt không thể mua" };
+                return new ApiResult { Message = "Tài khoản này chưa duyệt không thể mua." };
             }
+
             var seller = await _dataContext.Users.FirstOrDefaultAsync(x => x.Id == gameAccount.UserId);
+            if (seller == null)
+            {
+                return new ApiResult { Message = "Người bán không tồn tại." };
+            }
+
             decimal sellerReceiveAmount = accountPrice * 0.9M;
+
             using var tran = await _dataContext.Database.BeginTransactionAsync();
             try
             {
@@ -284,12 +340,12 @@ namespace DragonAcc.Service.Services
                     seller.Balance = sellerReceiveAmount.ToString();
                 }
                 _dataContext.Update(seller);
-                user.Balance = (userBalance - accountPrice).ToString();
-                _dataContext.Update(user);
+                buyer.Balance = (buyerBalance - accountPrice).ToString();
+                _dataContext.Update(buyer);
 
                 var purchasedAccount = new PurchasedAccount
                 {
-                    UserId = _userService.UserId,
+                    UserId = buyer.Id,
                     GameName = gameAccount.GameName,
                     AccountName = gameAccount.AccountName,
                     AccountPasswordChange = gameAccount.PasswordChanged,
@@ -300,12 +356,33 @@ namespace DragonAcc.Service.Services
                 _dataContext.PurchasedAccounts.Add(purchasedAccount);
                 gameAccount.Status = "Đã bán";
                 gameAccount.NoYetMoney = false;
+                _dataContext.Update(gameAccount);
+                var sellerStat = await _dataContext.Statisticals.FirstOrDefaultAsync(s => s.UserId == seller.Id);
+
+                if (sellerStat != null)
+                {
+                    sellerStat.AccountSold = (sellerStat.AccountSold ?? 0) + 1;
+                }
+                else
+                {
+                    sellerStat = new Statistical
+                    {
+                        UserId = seller.Id,
+                        CountAccount = 0,
+                        UnSoldAccount = 0,
+                        AccountSold = 1,
+                        TotalDeposit = 0m,
+                        TotalWithDraw = 0m
+                    };
+                    _dataContext.Statisticals.Add(sellerStat);
+                }
+
                 await _dataContext.SaveChangesAsync();
                 await tran.CommitAsync();
 
                 return new ApiResult
                 {
-                    Message = "Mua tài khoản thành công.",
+                    Data = new { Message = "Mua tài khoản thành công." }
                 };
             }
             catch (Exception ex)
@@ -316,4 +393,3 @@ namespace DragonAcc.Service.Services
         }
     }
 }
-

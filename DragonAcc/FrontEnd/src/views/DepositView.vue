@@ -114,8 +114,6 @@ export default {
     loading.value = false;
   }
 };
-
-
     return {
       amounts,
       selectedAmount,

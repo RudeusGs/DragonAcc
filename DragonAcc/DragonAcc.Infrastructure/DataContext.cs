@@ -20,14 +20,15 @@ namespace DragonAcc.Infrastructure
         public DbSet<Pubg_Game> Pubg_Games { get; set; }
         public DbSet<NgocRong_Game> NgocRong_Games { get; set; }
         public DbSet<Lol_Game> Lol_Games { get; set; }
-        public DbSet<Comment> Comments { get; set; }
-        public DbSet<Reaction> Reactions { get; set; }
         public DbSet<PurchasedAccount> PurchasedAccounts { get; set; }
         public DbSet<Message> Messages { get; set; }
         public DbSet<Deposit> Deposits { get; set; }
         public DbSet<LuckyWheel> LuckyWheels { get; set; }
         public DbSet<LuckyWheelListPrize> LuckyWheelListPrizes { get; set; }
         public DbSet<Auction> Auctions { get; set; }
-
+        public DbSet<Statistical> Statisticals { get; set; }
+        public DbSet<Notification>  Notifications { get; set; }
+        public DbSet<StatisticalForAdmin> StatisticalForAdmins { get; set; }
+        public DbSet<WithDrawMoney> WithDrawMoney { get; set; }
     }
 }
