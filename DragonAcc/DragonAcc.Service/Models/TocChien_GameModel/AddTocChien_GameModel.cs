@@ -10,7 +10,6 @@ namespace DragonAcc.Service.Models.TocChien_GameModel
         public int? ChampionCount { get; set; }
         public int? SkinCount { get; set; }
         public string? Rank { get; set; }
-        public string? Description { get; set; }
         public decimal? Price { get; set; }
         public List<IFormFile>? Files { get; set; }
     }

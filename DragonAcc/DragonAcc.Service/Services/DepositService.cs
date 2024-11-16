@@ -16,7 +16,7 @@ namespace DragonAcc.Service.Services
 
         public async Task<ApiResult> Add(AddDepositModel model)
         {
-            if ( model.DepositAmount == null || string.IsNullOrEmpty(model.NumberCard))
+            if (model.DepositAmount == null || string.IsNullOrEmpty(model.NumberCard))
             {
                 return new ApiResult { Message = "Invalid deposit details." };
             }
@@ -68,6 +68,7 @@ namespace DragonAcc.Service.Services
             {
                 return new ApiResult { Message = "This deposit has already been approved." };
             }
+
             var user = await _dataContext.Users.FirstOrDefaultAsync(u => u.Id == deposit.UserId);
             if (user == null)
             {
@@ -98,10 +99,32 @@ namespace DragonAcc.Service.Services
 
                 _dataContext.Users.Update(user);
                 _dataContext.Deposits.Update(deposit);
+
+                var userStat = await _dataContext.Statisticals.FirstOrDefaultAsync(s => s.UserId == user.Id);
+
+                if (userStat != null)
+                {
+                    userStat.TotalDeposit += depositAmount;
+                }
+                else
+                {
+                    userStat = new Statistical
+                    {
+                        UserId = user.Id,
+                        TotalDeposit = depositAmount,
+                        CountAccount = 0,
+                        AccountSold = 0,
+                        UnSoldAccount = 0,
+                        TotalWithDraw = 0m
+                    };
+
+                    _dataContext.Statisticals.Add(userStat);
+                }
+
                 await _dataContext.SaveChangesAsync();
                 await transaction.CommitAsync();
 
-                return new() { Message = "Thành công!"};
+                return new ApiResult { Message = "Thành công!" };
             }
             catch (Exception ex)
             {
@@ -109,5 +132,6 @@ namespace DragonAcc.Service.Services
                 return new ApiResult { Message = $"Failed to update deposit status: {ex.Message}" };
             }
         }
+
     }
 }

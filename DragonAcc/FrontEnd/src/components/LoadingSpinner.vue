@@ -30,7 +30,7 @@ export default defineComponent({
   left: 0;
   width: 100vw;
   height: 100vh;
-  background-color: #f3f6f8; /* LinkedIn-like light gray */
+  background-color: #f3f6f8;
   display: flex;
   align-items: center;
   justify-content: center;

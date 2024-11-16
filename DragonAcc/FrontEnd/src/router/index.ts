@@ -7,13 +7,15 @@ import ProfileView from '@/views/ProfileView.vue'
 import NotificationsView from '@/views/NotiView.vue'
 import AuctionListView from '@/views/AuctionListView.vue'
 import AuctionDetailView from '@/views/AuctionDetailView.vue'
+import StatisticalView from '@/views/StatisticalView.vue'
 import LoginView from '@/views/LoginView.vue'
+import WithDrawMoneyView from '@/views/WithDrawMoneyView.vue'
 import LuckyWheelView from '@/views/LuckyWheelView.vue'
+import AdminManageWithDrawView from '@/views/AdminManageWithDrawView.vue'
 import AIEsportView from '@/views/AIEsportView.vue'
 import RegisterView from '@/views/RegisterView.vue'
 import AdminManageDeposit from '@/views/AdminManageDeposit.vue'
 import DepositView from '@/views/DepositView.vue'
-import { userStore } from '../stores/auth'
 import AdminManageView from '@/views/AdminManageView.vue'
 const router = createRouter({
   history: createWebHistory(import.meta.env.BASE_URL),
@@ -96,7 +98,21 @@ const router = createRouter({
       name: 'adminmanagedeposit',
       component: AdminManageDeposit,
     },
-    
+    {
+      path: '/statistical',
+      name: 'statistical',
+      component: StatisticalView,
+    },
+    {
+      path: '/withdrawmoney',
+      name: 'withdrawmoney',
+      component: WithDrawMoneyView,
+    },
+    {
+      path: '/adminmanagewithdraw',
+      name: 'adminmanagewithdraw',
+      component: AdminManageWithDrawView,
+    },
     
   ]
 })

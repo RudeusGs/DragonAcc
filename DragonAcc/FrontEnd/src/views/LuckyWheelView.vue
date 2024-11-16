@@ -27,7 +27,7 @@
       <div class="prize-section">
         <h2><i class="fas fa-trophy"></i> Phần Thưởng Của Bạn</h2>
         <ul class="prize-list">
-          <!-- Limit display to the first 8 items using slice -->
+          <!-- Limit display to the first 9 items using slice -->
           <li v-for="(prize, index) in userPrizes.slice(0, 9)" :key="index">
             <span>{{ index + 1 }}. {{ prize.prize }}</span>
             <span>{{ formatDate(prize.createdDate) }}</span>
@@ -178,39 +178,39 @@ export default {
       this.applySwapAnimation(i, j);
     },
     applySwapAnimation(i, j) {
-  const cardElements = this.$refs.cardContainer.querySelectorAll('.card');
-  const card1 = cardElements[i];
-  const card2 = cardElements[j];
+      const cardElements = this.$refs.cardContainer.querySelectorAll('.card');
+      const card1 = cardElements[i];
+      const card2 = cardElements[j];
 
-  card1.style.transition = 'transform 0.5s ease-in-out';
-  card2.style.transition = 'transform 0.5s ease-in-out';
+      card1.style.transition = 'transform 0.5s ease-in-out';
+      card2.style.transition = 'transform 0.5s ease-in-out';
 
-  const containerRect = this.$refs.cardContainer.getBoundingClientRect();
-  const rect1 = card1.getBoundingClientRect();
-  const rect2 = card2.getBoundingClientRect();
+      const containerRect = this.$refs.cardContainer.getBoundingClientRect();
+      const rect1 = card1.getBoundingClientRect();
+      const rect2 = card2.getBoundingClientRect();
 
-  const deltaX = rect2.left - rect1.left;
-  const deltaY = rect2.top - rect1.top;
+      const deltaX = rect2.left - rect1.left;
+      const deltaY = rect2.top - rect1.top;
 
-  // Adjust deltas to be relative to the container
-  const adjustedDeltaX = deltaX;
-  const adjustedDeltaY = deltaY;
+      // Adjust deltas to be relative to the container
+      const adjustedDeltaX = deltaX;
+      const adjustedDeltaY = deltaY;
 
-  card1.style.transform = `translate(${adjustedDeltaX}px, ${adjustedDeltaY}px)`;
-  card2.style.transform = `translate(${-adjustedDeltaX}px, ${-adjustedDeltaY}px)`;
+      card1.style.transform = `translate(${adjustedDeltaX}px, ${adjustedDeltaY}px)`;
+      card2.style.transform = `translate(${-adjustedDeltaX}px, ${-adjustedDeltaY}px)`;
 
-  // Ensure the browser applies the transform
-  requestAnimationFrame(() => {
-    setTimeout(() => {
-      card1.style.transform = '';
-      card2.style.transform = '';
-      [this.shuffledRewards[i], this.shuffledRewards[j]] = [
-        this.shuffledRewards[j],
-        this.shuffledRewards[i],
-      ];
-    }, 500);
-  });
-},
+      // Ensure the browser applies the transform
+      requestAnimationFrame(() => {
+        setTimeout(() => {
+          card1.style.transform = '';
+          card2.style.transform = '';
+          [this.shuffledRewards[i], this.shuffledRewards[j]] = [
+            this.shuffledRewards[j],
+            this.shuffledRewards[i],
+          ];
+        }, 500);
+      });
+    },
     getCardStyle(index) {
       const pos = this.positions[index];
       const row = Math.floor(pos / 3) + 1;
@@ -225,6 +225,9 @@ export default {
     formatDate(dateString) {
       const options = { day: 'numeric', month: 'numeric', year: 'numeric' };
       return new Date(dateString).toLocaleDateString('vi-VN', options);
+    },
+    closeModal() {
+      this.showInsufficientCoinsModal = false;
     },
   },
 };
@@ -249,16 +252,15 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 90vh;
-  gap: 20px;
-  transform: scale(0.8); /* Thu nhỏ toàn bộ giao diện */
+  height: 100vh; /* Tăng chiều cao để phù hợp với kích thước vừa phải */
+  gap: 30px; /* Tăng khoảng cách giữa các phần */
   transform-origin: center;
 }
 
 .game-container {
   display: flex;
   align-items: flex-start;
-  gap: 30px;
+  gap: 40px; /* Tăng khoảng cách giữa các phần trong game-container */
 }
 
 .card-section {
@@ -270,16 +272,16 @@ body {
 
 .card-container {
   display: grid;
-  grid-template-columns: repeat(3, 90px); /* Giảm kích thước card */
-  grid-template-rows: repeat(3, 130px);
-  gap: 10px;
+  grid-template-columns: repeat(3, 120px); /* Điều chỉnh kích thước card */
+  grid-template-rows: repeat(3, 160px); /* Điều chỉnh kích thước card */
+  gap: 10px; /* Giảm khoảng cách giữa các thẻ */
   position: relative;
   overflow: hidden;
 }
 
 .card {
-  width: 100px; /* Giảm kích thước card */
-  height: 130px;
+  width: 120px; /* Điều chỉnh kích thước card */
+  height: 160px; /* Điều chỉnh kích thước card */
   perspective: 1000px;
   cursor: pointer;
 }
@@ -287,7 +289,7 @@ body {
 .card .card-face {
   width: 100%;
   height: 100%;
-  border-radius: 10px;
+  border-radius: 15px; /* Giảm độ bo tròn */
   background-color: #fff;
   position: absolute;
   backface-visibility: hidden;
@@ -302,15 +304,15 @@ body {
 .card .front {
   background: linear-gradient(45deg, #ff6b6b, #f94d6a);
   color: #fff;
-  font-size: 30px;
+  font-size: 30px; /* Điều chỉnh kích thước icon */
 }
 
 .card .back {
   background: #fff;
   color: #333;
   transform: rotateY(180deg);
-  font-size: 12px;
-  padding: 8px;
+  font-size: 14px; /* Điều chỉnh kích thước font chữ */
+  padding: 12px; /* Điều chỉnh padding */
   text-align: center;
 }
 
@@ -323,20 +325,21 @@ body {
 }
 
 .flip-all-button {
-  margin-top: 20px;
-  padding: 10px 30px;
-  font-size: 16px;
+  margin-top: 20px; /* Giảm khoảng cách từ card-container đến nút */
+  padding: 12px 30px; /* Điều chỉnh padding để nút vừa vặn hơn */
+  font-size: 16px; /* Điều chỉnh kích thước font chữ */
   background-color: #1dd1a1;
   color: #fff;
   border: none;
-  border-radius: 50px;
+  border-radius: 40px; /* Giảm độ bo tròn */
   cursor: pointer;
   transition: background-color 0.3s, transform 0.2s;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .flip-all-button i {
-  margin-right: 10px;
+  margin-right: 10px; /* Giảm khoảng cách giữa icon và text */
+  font-size: 18px; /* Điều chỉnh kích thước icon */
 }
 
 .flip-all-button:hover {
@@ -345,24 +348,25 @@ body {
 }
 
 .prize-section {
-  width: 300px;
-  padding: 20px;
+  width: 350px; /* Điều chỉnh độ rộng của prize-section */
+  padding: 25px; /* Điều chỉnh padding */
   background-color: #ffffffcc;
-  border-radius: 15px;
+  border-radius: 15px; /* Giảm độ bo tròn */
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .prize-section h2 {
-  margin-bottom: 15px;
-  font-size: 16px;
+  margin-bottom: 20px; /* Tăng khoảng cách dưới tiêu đề */
+  font-size: 18px; /* Điều chỉnh kích thước font chữ */
   text-align: center;
   color: #333;
 }
 
 .prize-section h2 i {
   color: #fbc531;
-  margin-right: 5px;
+  margin-right: 8px; /* Giảm khoảng cách giữa icon và text */
+  font-size: 20px; /* Điều chỉnh kích thước icon */
 }
 
 .prize-list {
@@ -373,10 +377,10 @@ body {
 
 .prize-list li {
   background-color: #f1f2f6;
-  padding: 10px;
-  margin-bottom: 8px;
-  border-radius: 10px;
-  font-size: 10px;
+  padding: 12px; /* Giảm padding */
+  margin-bottom: 10px; /* Giảm khoảng cách giữa các phần thưởng */
+  border-radius: 10px; /* Giảm độ bo tròn */
+  font-size: 12px; /* Giảm kích thước font chữ */
   color: #555;
   display: flex;
   align-items: center;
@@ -392,24 +396,24 @@ body {
 }
 
 .prize-list li span:last-child {
-  font-size: 14px;
+  font-size: 14px; /* Điều chỉnh kích thước font chữ */
   color: #999;
 }
 
 .btn-nhan button {
   margin-left: 10px;
-  padding: 4px 8px; /* Giảm padding để nút nhỏ hơn */
-  font-size: 1px; /* Giảm font-size */
+  padding: 6px 12px; /* Giảm padding để nút vừa vặn hơn */
+  font-size: 12px; /* Điều chỉnh font-size */
   background-color: #1dd1a1;
   color: #fff;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px; /* Giảm độ bo tròn */
   cursor: pointer;
   transition: background-color 0.3s;
 }
 
 .btn-nhan button:hover {
-  background-color: #10ac84; /* Màu nền khi hover */
+  background-color: #10ac84;
 }
 
 .insufficient-coins-modal-overlay {
@@ -427,23 +431,25 @@ body {
 
 .insufficient-coins-modal {
   background-color: #fff;
-  padding: 20px;
-  border-radius: 10px;
+  padding: 20px; /* Giảm padding */
+  border-radius: 10px; /* Giảm độ bo tròn */
   text-align: center;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .insufficient-coins-modal p {
-  font-size: 16px;
-  margin-bottom: 15px;
+  font-size: 16px; /* Điều chỉnh kích thước font chữ */
+  margin-bottom: 15px; /* Giảm khoảng cách dưới text */
 }
 
 .insufficient-coins-modal button {
-  padding: 8px 16px;
+  padding: 8px 16px; /* Điều chỉnh padding để nút vừa vặn hơn */
   background-color: #1dd1a1;
   color: #fff;
   border: none;
-  border-radius: 5px;
+  border-radius: 6px; /* Giảm độ bo tròn */
   cursor: pointer;
+  font-size: 14px; /* Điều chỉnh kích thước font chữ */
 }
 
 .insufficient-coins-modal button:hover {
@@ -454,12 +460,85 @@ body {
   .game-container {
     flex-direction: column;
     align-items: center;
+    gap: 20px; /* Điều chỉnh khoảng cách cho màn hình nhỏ */
   }
 
   .scene {
     height: auto;
     padding: 50px 0;
   }
-}
 
+  .card-container {
+    grid-template-columns: repeat(3, 120px); /* Giảm kích thước cho màn hình nhỏ */
+    grid-template-rows: repeat(3, 160px);
+    gap: 10px;
+  }
+
+  .card {
+    width: 120px; /* Giảm kích thước cho màn hình nhỏ */
+    height: 160px;
+  }
+
+  .card .front {
+    font-size: 30px; /* Giảm kích thước icon cho màn hình nhỏ */
+  }
+
+  .card .back {
+    font-size: 14px; /* Giảm kích thước font chữ cho màn hình nhỏ */
+    padding: 12px;
+  }
+
+  .flip-all-button {
+    padding: 12px 30px; /* Điều chỉnh padding cho màn hình nhỏ */
+    font-size: 16px;
+  }
+
+  .flip-all-button i {
+    margin-right: 10px;
+    font-size: 18px;
+  }
+
+  .prize-section {
+    width: 90%; /* Điều chỉnh độ rộng cho màn hình nhỏ */
+    padding: 20px;
+  }
+
+  .prize-section h2 {
+    font-size: 16px;
+  }
+
+  .prize-section h2 i {
+    font-size: 18px;
+    margin-right: 8px;
+  }
+
+  .prize-list li {
+    padding: 10px;
+    font-size: 12px;
+  }
+
+  .prize-list li span:last-child {
+    font-size: 14px;
+  }
+
+  .btn-nhan button {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .insufficient-coins-modal {
+    padding: 15px;
+    border-radius: 10px;
+  }
+
+  .insufficient-coins-modal p {
+    font-size: 16px;
+    margin-bottom: 15px;
+  }
+
+  .insufficient-coins-modal button {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
+}
 </style>
