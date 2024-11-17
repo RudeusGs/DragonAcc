@@ -12,9 +12,9 @@ export const luckyWheelApi = {
     }
   },
 
-  spin: async () => {
+  spin: async (prizeId: any) => {
     try {
-      const response = await baseApi.post('LuckyWheel/spin', {});
+      const response = await baseApi.post(`LuckyWheel/spin?prizeId=${prizeId}`, {});
       return response.data.result;
     } catch (error) {
       console.error('Error spinning the wheel:', error);

@@ -1,4 +1,6 @@
-﻿using DragonAcc.Infrastructure;
+﻿// File: Valorant_GameService.cs
+
+using DragonAcc.Infrastructure;
 using DragonAcc.Infrastructure.Entities;
 using DragonAcc.Infrastructure.Entities.GameInfoDetail;
 using DragonAcc.Service.Common.IServices;
@@ -7,10 +9,6 @@ using DragonAcc.Service.Models;
 using DragonAcc.Service.Models.Valorant_GameModel;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace DragonAcc.Service.Services
 {
@@ -196,24 +194,28 @@ namespace DragonAcc.Service.Services
                         gameAccount.Status = "Đang bán";
                         gameAccount.PasswordChanged = RandomPasswordChangeService.GenerateRandomString();
                         gameAccount.AdminUpdate = _userService.UserId;
-
+                        _dataContext.Update(gameAccount);
                         var statistical = await _dataContext.Statisticals.FirstOrDefaultAsync(s => s.UserId == gameAccount.UserId);
 
                         if (statistical != null)
                         {
-                            statistical.CountAccount = (statistical.CountAccount ?? 0) + 1;
-                            statistical.UnSoldAccount = (statistical.UnSoldAccount ?? 0) + 1;
+                            statistical.CurrentAccountCount += 1;
+                            statistical.UnsoldAccountCount += 1;
                         }
                         else
                         {
                             statistical = new Statistical
                             {
                                 UserId = gameAccount.UserId,
-                                CountAccount = 1,
-                                UnSoldAccount = 1,
+                                CurrentAccountCount = 1,
+                                UnsoldAccountCount = 1,
                                 TotalDeposit = 0m,
-                                AccountSold = 0,
-                                TotalWithDraw = 0m
+                                SoldAccountCount = 0,
+                                TotalWithdrawn = 0m,
+                                TotalEarnings = 0m,
+                                TotalAccountSales = 0m,
+                                TotalAccountPurchases = 0m,
+                                CreatedDate = DateTime.Now,
                             };
                             _dataContext.Statisticals.Add(statistical);
                         }
@@ -221,7 +223,7 @@ namespace DragonAcc.Service.Services
                         {
                             UserIdSend = _userService.UserId,
                             UserId = gameAccount.UserId,
-                            Content = "Tài khoản của bạn đã được duyệt.",
+                            Content = "Tài khoản valorant của bạn đã được duyệt.",
                             IsRead = false,
                             CreatedDate = DateTime.Now,
                         };
@@ -333,6 +335,7 @@ namespace DragonAcc.Service.Services
             using var tran = await _dataContext.Database.BeginTransactionAsync();
             try
             {
+                // Cập nhật số dư cho người bán
                 if (decimal.TryParse(seller.Balance, out decimal sellerBalance))
                 {
                     seller.Balance = (sellerBalance + sellerReceiveAmount).ToString();
@@ -341,10 +344,20 @@ namespace DragonAcc.Service.Services
                 {
                     seller.Balance = sellerReceiveAmount.ToString();
                 }
+
+                // Cập nhật xu cho người mua
+                if (accountPrice > 50000)
+                {
+                    buyer.Coin += 1;
+                }
+
                 _dataContext.Update(seller);
 
+                // Cập nhật số dư cho người mua
                 buyer.Balance = (buyerBalance - accountPrice).ToString();
                 _dataContext.Update(buyer);
+
+                // Thêm vào bảng PurchasedAccount
                 var purchasedAccount = new PurchasedAccount
                 {
                     UserId = buyer.Id,
@@ -356,29 +369,76 @@ namespace DragonAcc.Service.Services
                 };
 
                 _dataContext.PurchasedAccounts.Add(purchasedAccount);
+
+                // Cập nhật trạng thái tài khoản game
                 gameAccount.Status = "Đã bán";
                 gameAccount.NoYetMoney = false;
                 _dataContext.Update(gameAccount);
+
+                // Cập nhật thống kê cho người bán
                 var sellerStat = await _dataContext.Statisticals.FirstOrDefaultAsync(s => s.UserId == seller.Id);
 
                 if (sellerStat != null)
                 {
-                    sellerStat.AccountSold = (sellerStat.AccountSold ?? 0) + 1;
+                    sellerStat.SoldAccountCount += 1;
+                    sellerStat.UnsoldAccountCount -= 1;
+                    sellerStat.TotalAccountSales += sellerReceiveAmount;
+                    sellerStat.TotalEarnings += sellerReceiveAmount;
                 }
                 else
                 {
                     sellerStat = new Statistical
                     {
                         UserId = seller.Id,
-                        CountAccount = 0,
-                        UnSoldAccount = 0,
-                        AccountSold = 1,
+                        SoldAccountCount = 1,
+                        UnsoldAccountCount = 0,
                         TotalDeposit = 0m,
-                        TotalWithDraw = 0m
+                        TotalWithdrawn = 0m,
+                        CurrentAccountCount = 0,
+                        TotalAccountSales = sellerReceiveAmount,
+                        TotalEarnings = sellerReceiveAmount,
+                        TotalAccountPurchases = 0m,
+                        CreatedDate = DateTime.Now,
                     };
                     _dataContext.Statisticals.Add(sellerStat);
                 }
 
+                // Cập nhật thống kê cho người mua
+                var buyerStat = await _dataContext.Statisticals.FirstOrDefaultAsync(s => s.UserId == buyer.Id);
+
+                if (buyerStat != null)
+                {
+                    buyerStat.CurrentAccountCount += 1;
+                    buyerStat.TotalAccountPurchases += accountPrice;
+                    buyerStat.TotalEarnings -= accountPrice;
+                }
+                else
+                {
+                    buyerStat = new Statistical
+                    {
+                        UserId = buyer.Id,
+                        CurrentAccountCount = 1,
+                        SoldAccountCount = 0,
+                        UnsoldAccountCount = 0,
+                        TotalDeposit = 0m,
+                        TotalWithdrawn = 0m,
+                        TotalAccountSales = 0m,
+                        TotalEarnings = -accountPrice,
+                        TotalAccountPurchases = accountPrice,
+                        CreatedDate = DateTime.Now,
+                    };
+                    _dataContext.Statisticals.Add(buyerStat);
+                }
+
+                var notification = new Notification
+                {
+                    UserIdSend = model.UserId,
+                    UserId = seller.Id,
+                    Content = $"{buyer.FullName ?? buyer.UserName} đã mua tài khoản valorant của bạn.",
+                    IsRead = false,
+                    CreatedDate = DateTime.Now,
+                };
+                _dataContext.Notifications.Add(notification);
                 await _dataContext.SaveChangesAsync();
                 await tran.CommitAsync();
 

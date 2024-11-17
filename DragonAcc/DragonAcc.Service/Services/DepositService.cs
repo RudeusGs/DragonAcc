@@ -1,4 +1,6 @@
-﻿using DragonAcc.Infrastructure;
+﻿// File: DepositService.cs
+
+using DragonAcc.Infrastructure;
 using DragonAcc.Infrastructure.Entities;
 using DragonAcc.Service.Common.IServices;
 using DragonAcc.Service.Interfaces;
@@ -37,6 +39,7 @@ namespace DragonAcc.Service.Services
 
             return new ApiResult(newDeposit) { Message = "Deposit request added successfully." };
         }
+
         public async Task<ApiResult> GetAllByUserId(int id)
         {
             var deposits = await _dataContext.Deposits
@@ -51,6 +54,7 @@ namespace DragonAcc.Service.Services
             var deposits = await _dataContext.Deposits.ToListAsync();
             return new ApiResult(deposits);
         }
+
         public async Task<ApiResult> UpdateStatus(UpdateStatus_Model model)
         {
             if (model.Id == null)
@@ -94,12 +98,38 @@ namespace DragonAcc.Service.Services
                 {
                     user.Balance = userReceiveAmount.ToString();
                 }
+
+                // Cập nhật số xu dựa trên số tiền nạp
+                if (depositAmount <= 50000)
+                {
+                    user.Coin += 2;
+                }
+                else if (depositAmount > 50000 && depositAmount <= 200000)
+                {
+                    user.Coin += 4;
+                }
+                else if (depositAmount > 200000 && depositAmount <= 1000000)
+                {
+                    user.Coin += 8;
+                }
+
                 deposit.Status = "Thành công";
                 deposit.UpdatedDate = DateTime.UtcNow;
 
+                var notification = new Notification
+                {
+                    UserIdSend = _userService.UserId,
+                    UserId = deposit.UserId,
+                    Content = "Thẻ cào của bạn đã được duyệt.",
+                    IsRead = false,
+                    CreatedDate = DateTime.Now,
+                };
+
+                _dataContext.Notifications.Add(notification);
                 _dataContext.Users.Update(user);
                 _dataContext.Deposits.Update(deposit);
 
+ 
                 var userStat = await _dataContext.Statisticals.FirstOrDefaultAsync(s => s.UserId == user.Id);
 
                 if (userStat != null)
@@ -112,10 +142,14 @@ namespace DragonAcc.Service.Services
                     {
                         UserId = user.Id,
                         TotalDeposit = depositAmount,
-                        CountAccount = 0,
-                        AccountSold = 0,
-                        UnSoldAccount = 0,
-                        TotalWithDraw = 0m
+                        TotalEarnings = 0m,
+                        TotalAccountSales = 0m,
+                        TotalAccountPurchases = 0m,
+                        CurrentAccountCount = 0,
+                        SoldAccountCount = 0,
+                        UnsoldAccountCount = 0,
+                        TotalWithdrawn = 0m,
+                        CreatedDate = DateTime.Now,
                     };
 
                     _dataContext.Statisticals.Add(userStat);
@@ -132,6 +166,5 @@ namespace DragonAcc.Service.Services
                 return new ApiResult { Message = $"Failed to update deposit status: {ex.Message}" };
             }
         }
-
     }
 }

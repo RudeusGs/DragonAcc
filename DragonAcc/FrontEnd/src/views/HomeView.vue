@@ -1,7 +1,6 @@
 <template>
   <LoadingSpinner :isLoading="loading" />
   <div v-if="!loading" class="container">
-    <!-- Sidebar -->
     <div class="sidebar">
       <h3>Chọn game</h3>
       <ul class="game-list">
@@ -54,10 +53,8 @@
       </ul>
     </div>
 
-    <!-- Content Container -->
     <div class="content-container">
       <div class="left-column">
-        <!-- Carousel -->
         <div class="banner-carousel">
           <div
             class="carousel-slide"
@@ -76,7 +73,6 @@
         </div>
 
         <h2 class="d-flex justify-content-center mt-3 mb-3">Các tài khoản hiện có</h2>
-        <!-- Post Album Grid -->
         <div class="post-grid">
           <div
             class="post-album-container"
@@ -99,7 +95,12 @@
               </div>
             </div>
             <div class="post-images" v-if="post.images.length > 0">
-              <img :src="getFullImageUrl(post.images[0])" alt="Product image" class="image-item" />
+              <img 
+                :src="getFullImageUrl(post.images[0])" 
+                alt="Product image" 
+                class="image-item" 
+                @click="openImagePreview(post.images, 0)" 
+              />
             </div>
             <div class="game-attributes">
               <div
@@ -146,7 +147,6 @@
           </div>
         </div>
 
-        <!-- Pagination Controls -->
         <div class="pagination" v-if="totalPages > 1">
           <button
             class="pagination-button"
@@ -176,7 +176,6 @@
         </div>
       </div>
 
-      <!-- Right Column -->
       <div class="right-column">
         <div class="page-container">
           <div class="profile-header">
@@ -188,10 +187,12 @@
                 <span>{{ formatBalance(userModel.balance) }}</span>
                 <a href="/deposit" class="deposit-link"><i class="fas fa-plus"></i></a>
               </div>
-              <div class="stat-card">
+              <div class="stat-card1">
                 <i class="fas fa-coins"></i>
                 <span>{{ userModel.coin }}</span>
+                <a class="deposit-link" @click.prevent="openCoinInfoModal" style="cursor: pointer;"><i class="fas fa-question"></i></a>
               </div>
+
               <div class="stat-card1">
                 <i class="fas fa-shopping-cart"></i>
                 <span>Tài khoản:  {{ mySellingAccounts }}</span>
@@ -207,7 +208,6 @@
         </div>
       </div>
 
-      <!-- Purchase Confirmation Modal -->
       <div class="modal-overlay" v-if="purchaseModalVisible">
         <div class="modal-content">
           <h2>Xác nhận mua tài khoản</h2>
@@ -219,44 +219,35 @@
         </div>
       </div>
 
-      <!-- Error Modal -->
       <div class="modal-overlay error-modal" v-if="errorModalVisible">
         <div class="modal-content">
           <i class="fas fa-exclamation-triangle error-icon"></i>
           <h2>Lỗi</h2>
           <p>{{ errorModalMessage }}</p>
           <div class="modal-buttons">
-            <button type="button" @click="closeErrorModal" class="close-button">
-              Đóng
-            </button>
+            <button type="button" @click="closeErrorModal" class="close-button">Đóng</button>
           </div>
         </div>
       </div>
 
-      <!-- Success Modal -->
       <div class="modal-overlay success-modal" v-if="successModalVisible">
         <div class="modal-content">
           <i class="fas fa-check-circle success-icon"></i>
           <h2>{{ successModalTitle }}</h2>
           <p>{{ successModalMessage }}</p>
           <div class="modal-buttons">
-            <button type="button" @click="closeSuccessModal" class="close-button">
-              Đóng
-            </button>
+            <button type="button" @click="closeSuccessModal" class="close-button">Đóng</button>
           </div>
         </div>
       </div>
 
-      <!-- Insufficient Funds Modal -->
       <div class="modal-overlay" v-if="insufficientFundsModalVisible">
         <div class="modal-content">
           <i class="fas fa-exclamation-triangle error-icon"></i>
           <h2>Không đủ tiền!</h2>
           <p>Bạn không đủ số dư để mua tài khoản này.</p>
           <div class="modal-buttons">
-            <button type="button" @click="closeInsufficientFundsModal" class="close-button">
-              Đóng
-            </button>
+            <button type="button" @click="closeInsufficientFundsModal" class="close-button">Đóng</button>
             <a href="/deposit" class="deposit-link">
               <button type="button" class="deposit-button">Nạp tiền</button>
             </a>
@@ -264,12 +255,10 @@
         </div>
       </div>
 
-      <!-- Add Account Modal -->
       <div class="new-modal-overlay" v-if="addAccountModalVisible">
         <div class="new-modal-content">
           <h2>Thêm Tài Khoản Mới</h2>
           <form @submit.prevent="submitAddAccount">
-            <!-- Lựa chọn game -->
             <div class="new-form-group">
               <label for="game">Chọn Game:</label>
               <select v-model="newAccount.gameName" id="game" required>
@@ -280,25 +269,21 @@
               </select>
             </div>
 
-            <!-- Tên tài khoản -->
             <div class="new-form-group">
               <label for="accountName">Tên Tài Khoản:</label>
               <input type="text" id="accountName" v-model="newAccount.AccountName" required />
             </div>
 
-            <!-- Mật khẩu -->
             <div class="new-form-group">
               <label for="password">Mật Khẩu:</label>
               <input type="password" id="password" v-model="newAccount.Password" required />
             </div>
 
-            <!-- Giá tài khoản -->
             <div class="new-form-group">
               <label for="price">Giá:</label>
               <input type="number" id="price" v-model.number="newAccount.Price" required min="0" />
             </div>
 
-            <!-- Upload hình ảnh -->
             <label class="new-label-image-upload" for="image-upload">
               <i class="fas fa-image"></i> Chọn hình ảnh
             </label>
@@ -310,7 +295,6 @@
               multiple
             />
 
-            <!-- Image Preview Section -->
             <div class="selected-images" v-if="images.length > 0">
               <div v-for="(img, idx) in images" :key="idx" class="selected-image">
                 <img :src="img" alt="Selected Image" />
@@ -318,7 +302,6 @@
               </div>
             </div>
 
-            <!-- Các trường thông tin khác theo game -->
             <div v-if="newAccount.gameName === 'Liên minh huyền thoại' || newAccount.gameName === 'Tốc chiến'">
               <div class="new-form-group">
                 <label for="championCount">Số Lượng Tướng:</label>
@@ -364,13 +347,35 @@
               </div>
             </div>
 
-            <!-- Nút xác nhận và hủy -->
             <div class="new-modal-buttons">
               <button type="submit" class="new-confirm-button">Thêm Tài Khoản</button>
               <button type="button" @click="closeAddAccountModal" class="new-cancel-button">Hủy</button>
             </div>
           </form>
         </div>
+      </div>
+
+      <div class="modal-overlay" v-if="imagePreviewVisible">
+        <div class="modal-content image-preview-modal">
+          <button type="button" @click="prevImage" class="nav-button prev-button">&#10094;</button>
+          <img :src="getFullImageUrl(selectedImages[selectedImageIndex])" alt="Image Preview" class="preview-image" />
+          <button type="button" @click="nextImage" class="nav-button next-button">&#10095;</button>
+          <button type="button" @click="closeImagePreview" class="close-preview-button">&times;</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-overlay" v-if="coinInfoModalVisible">
+    <div class="modal-content">
+      <h2>Khám Phá Xu</h2>
+      <p>
+        Bạn có thể nhận được <strong>Xu</strong> thông qua việc giao dịch tài khoản, nạp thẻ hoặc tham gia đấu giá.
+        <br /><br />
+        <strong>Xu</strong> không chỉ giúp bạn nâng cao trải nghiệm chơi game mà còn mở ra cơ hội sở hữu những tài khoản đẳng cấp,
+        độc quyền và những ưu đãi đặc biệt!
+      </p>
+      <div class="modal-buttons">
+        <button type="button" @click="closeCoinInfoModal" class="close-button">Đóng</button>
       </div>
     </div>
   </div>
@@ -384,50 +389,41 @@ import { userStore } from '@/stores/auth';
 import getallgameaccountAPI from '@/api/getallgameaccount.api';
 import getfullname from '@/api/getfullname.api';
 import profile from '@/api/profile.api';
-import * as addGameAccountAPI from '@/api/addgameaccount.api'; 
+import * as addGameAccountAPI from '@/api/addgameaccount.api';
 
-// Initialize user store
 const store = userStore();
-
-// Modal Visibility States
-const approvalModalVisible = ref(false);
+const coinInfoModalVisible = ref(false);
+const openCoinInfoModal = () => {
+  coinInfoModalVisible.value = true;
+};
+const closeCoinInfoModal = () => {
+  coinInfoModalVisible.value = false;
+};
 const successModalVisible = ref(false);
-
-// Success Modal Titles and Messages
 const successModalTitle = ref<string>('');
 const successModalMessage = ref<string>('');
-
-
-// Modal Control Methods
 const openErrorModal = (message: string): void => {
-  successModalVisible.value = false; // Close success modal if open
+  successModalVisible.value = false;
   errorModalMessage.value = message;
   errorModalVisible.value = true;
 };
-
 const closeErrorModal = (): void => {
   errorModalVisible.value = false;
   errorModalMessage.value = '';
 };
-
 const openSuccessModal = (title: string, message: string): void => {
-  errorModalVisible.value = false; // Close error modal if open
+  errorModalVisible.value = false;
   successModalTitle.value = title;
   successModalMessage.value = message;
   successModalVisible.value = true;
 };
-
 const closeSuccessModal = (): void => {
   successModalVisible.value = false;
   successModalTitle.value = '';
   successModalMessage.value = '';
 };
-
-// Error Modal Control
 const errorModalVisible = ref<boolean>(false);
 const errorModalMessage = ref<string>('');
-
-// Reactive variables
 const loading = ref(true);
 const selectedGameFilter = ref<string>('All');
 const gameOptions = ref<string[]>([
@@ -441,21 +437,21 @@ const gameOptions = ref<string[]>([
 const selectedStatusFilter = ref<string>('All');
 const selectedOwnerFilter = ref<string>('All');
 const posts = ref<any[]>([]);
-const purchaseModalVisible = ref(false); 
+const purchaseModalVisible = ref(false);
 const selectedPost = ref<any | null>(null);
 const insufficientFundsModalVisible = ref<boolean>(false);
 const addAccountModalVisible = ref<boolean>(false);
 const imageFiles = ref<File[]>([]);
 const images = ref<string[]>([]);
-
-// New account form data
+const imagePreviewVisible = ref<boolean>(false);
+const selectedImages = ref<string[]>([]);
+const selectedImageIndex = ref<number>(0);
 const newAccount = ref({
   gameName: '',
   AccountName: '',
   Password: '',
   Price: 0,
   Image: '',
-  // Game-specific fields
   championCount: 0,
   skinCount: 0,
   rank: '',
@@ -464,12 +460,9 @@ const newAccount = ref({
   server: '',
   planet: '',
 });
-
-// Pagination variables
 const currentPage = ref<number>(1);
 const itemsPerPage: number = 21;
 
-// Modal control methods
 const closePurchaseModal = (): void => {
   purchaseModalVisible.value = false;
 };
@@ -487,7 +480,6 @@ const closeAddAccountModal = (): void => {
   resetAddAccountForm();
 };
 
-// Reset the add account form
 const resetAddAccountForm = (): void => {
   newAccount.value = {
     gameName: '',
@@ -507,7 +499,6 @@ const resetAddAccountForm = (): void => {
   images.value = [];
 };
 
-// Handle image upload
 const handleImageUpload = (event: Event): void => {
   const files = (event.target as HTMLInputElement).files;
   if (files) {
@@ -524,13 +515,11 @@ const handleImageUpload = (event: Event): void => {
   }
 };
 
-// Remove selected image
 const removeImage = (index: number): void => {
   imageFiles.value.splice(index, 1);
   images.value.splice(index, 1);
 };
 
-// User information
 const userModel = ref({
   fullName: '',
   email: '',
@@ -539,7 +528,6 @@ const userModel = ref({
   createdDate: null,
 });
 
-// Fetch user profile
 const fetchUserProfile = async (shouldHandleError: boolean = true) => {
   try {
     const userId = store.user?.id || JSON.parse(localStorage.getItem('user') || '{}').id;
@@ -555,24 +543,14 @@ const fetchUserProfile = async (shouldHandleError: boolean = true) => {
           createdDate: userData.createdDate || '',
         };
       }
-    } else {
-      console.error('User ID not found.');
-      if (shouldHandleError) {
-        openErrorModal('User ID not found.');
-      }
     }
   } catch (error) {
     console.error('Error fetching user profile:', error);
-    if (shouldHandleError) {
-      openErrorModal('Đã xảy ra lỗi khi lấy thông tin người dùng.');
-    }
   }
 };
 
-// Full name of the user
 const fullname = computed<string>(() => store.user?.fullName || 'Chưa đăng nhập');
 
-// Filtering methods
 const filterPostsByStatus = (status: string) => {
   selectedStatusFilter.value = status;
   currentPage.value = 1;
@@ -588,25 +566,20 @@ const filterPostsByOwner = (owner: string) => {
   currentPage.value = 1;
 };
 
-// Format balance
 const formatBalance = (balanceString: string): string => {
   const balance = parseFloat(balanceString);
   if (isNaN(balance)) return '0 VNĐ';
   return balance.toLocaleString('vi-VN') + ' VNĐ';
 };
 
-// Open Purchase Modal
 const openPurchaseModal = (post: any): void => {
   selectedPost.value = post;
   purchaseModalVisible.value = true;
 };
 
-// Confirm Purchase
 const confirmPurchase = async (): Promise<void> => {
   if (!selectedPost.value) return;
   purchaseModalVisible.value = false;
-
-  // Check if user has enough balance
   const userBalance = parseFloat(userModel.value.balance);
   const postPrice = parseFloat(selectedPost.value.price);
   if (isNaN(userBalance) || isNaN(postPrice)) {
@@ -663,10 +636,8 @@ const confirmPurchase = async (): Promise<void> => {
   }
 };
 
-// Submit Add Account
 const submitAddAccount = async (): Promise<void> => {
   try {
-    // Kiểm tra các trường bắt buộc
     if (
       !newAccount.value.gameName ||
       !newAccount.value.AccountName ||
@@ -677,20 +648,14 @@ const submitAddAccount = async (): Promise<void> => {
       openErrorModal('Vui lòng điền đầy đủ các trường bắt buộc.');
       return;
     }
-
-    // Tạo FormData
     const formDataToSend = new FormData();
     formDataToSend.append('GameName', newAccount.value.gameName);
     formDataToSend.append('AccountName', newAccount.value.AccountName);
     formDataToSend.append('Password', newAccount.value.Password);
     formDataToSend.append('Price', newAccount.value.Price.toString());
-
-    // Đính kèm hình ảnh
     imageFiles.value.forEach((file) => {
       formDataToSend.append('Files', file);
     });
-
-    // Đính kèm các trường thông tin cụ thể theo game
     switch (newAccount.value.gameName) {
       case 'Liên minh huyền thoại':
         formDataToSend.append('ChampionCount', newAccount.value.championCount.toString());
@@ -698,39 +663,34 @@ const submitAddAccount = async (): Promise<void> => {
         formDataToSend.append('Rank', newAccount.value.rank);
         await addGameAccountAPI.addLol_Game(formDataToSend);
         break;
-
       case 'Tốc chiến':
         formDataToSend.append('ChampionCount', newAccount.value.championCount.toString());
         formDataToSend.append('SkinCount', newAccount.value.skinCount.toString());
         formDataToSend.append('Rank', newAccount.value.rank);
         await addGameAccountAPI.addTocChien_Game(formDataToSend);
         break;
-
       case 'Pubg':
         formDataToSend.append('GunSkinCount', newAccount.value.gunSkinCount.toString());
         formDataToSend.append('HumanSkinCount', newAccount.value.humanSkinCount.toString());
         formDataToSend.append('Rank', newAccount.value.rank);
         await addGameAccountAPI.addPubg_Game(formDataToSend);
         break;
-
       case 'Valorant':
         formDataToSend.append('GunSkinCount', newAccount.value.gunSkinCount.toString());
         formDataToSend.append('ChampionCount', newAccount.value.championCount.toString());
         formDataToSend.append('Rank', newAccount.value.rank);
         await addGameAccountAPI.addValorant_Game(formDataToSend);
         break;
-
       case 'Ngọc rồng online':
         formDataToSend.append('Server', newAccount.value.server);
         formDataToSend.append('Planet', newAccount.value.planet);
         await addGameAccountAPI.addNgocRong_Game(formDataToSend);
         break;
-
       default:
         openErrorModal('Game không hợp lệ.');
         return;
     }
-    closeAddAccountModal;
+    closeAddAccountModal();
     openSuccessModal(
       'Thêm tài khoản thành công!',
       'Tài khoản của bạn đã được thêm vào và đang chờ admin duyệt.'
@@ -742,7 +702,6 @@ const submitAddAccount = async (): Promise<void> => {
     openErrorModal('Có lỗi xảy ra khi thêm tài khoản.');
   }
 };
-
 
 const fetchData = async (): Promise<void> => {
   loading.value = true;
@@ -913,9 +872,6 @@ const fetchAllPosts = async (shouldHandleError: boolean = true): Promise<void> =
 
   } catch (error) {
     console.error('Error fetching posts:', error);
-    if (shouldHandleError) {
-      openErrorModal('Đã xảy ra lỗi khi lấy dữ liệu bài đăng.');
-    }
   }
 };
 
@@ -964,6 +920,30 @@ const mySellingAccounts = computed<number>(() => {
   return posts.value.filter(post => post.userId === store.user?.id).length;
 });
 
+const openImagePreview = (imagesList: string[], index: number): void => {
+  selectedImages.value = imagesList;
+  selectedImageIndex.value = index;
+  imagePreviewVisible.value = true;
+};
+
+const closeImagePreview = (): void => {
+  imagePreviewVisible.value = false;
+  selectedImages.value = [];
+  selectedImageIndex.value = 0;
+};
+
+const nextImage = (): void => {
+  if (selectedImageIndex.value < selectedImages.value.length - 1) {
+    selectedImageIndex.value += 1;
+  }
+};
+
+const prevImage = (): void => {
+  if (selectedImageIndex.value > 0) {
+    selectedImageIndex.value -= 1;
+  }
+};
+
 onMounted(async () => {
   await fetchAllPosts();
   await fetchUserProfile();
@@ -971,6 +951,7 @@ onMounted(async () => {
   startSlideShow();
   fetchData();
 });
+
 onUnmounted(() => {
   stopSlideShow();
 });
@@ -980,9 +961,9 @@ onUnmounted(() => {
 .container {
   display: flex;
   align-items: flex-start;
-  justify-content: center; 
+  justify-content: center;
   max-width: 1700px;
-  margin: 0 auto; 
+  margin: 0 auto;
   padding: 20px;
 }
 
@@ -993,7 +974,7 @@ onUnmounted(() => {
   padding: 15px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   position: fixed;
-  top: 68px; 
+  top: 68px;
   left: 20px;
   height: calc(100vh - 88px);
   overflow-y: auto;
@@ -1009,7 +990,7 @@ onUnmounted(() => {
 
 .game-list,
 .status-list,
-.owner-list { /* Include .owner-list with existing lists */
+.owner-list { 
   list-style: none;
   padding: 0;
   margin: 0;
@@ -1017,19 +998,19 @@ onUnmounted(() => {
 
 .game-list li,
 .status-list li,
-.owner-list li { /* Include .owner-list li with existing lis */
+.owner-list li { 
   font-size: 14px;
   color: #0073b1;
   cursor: pointer;
   padding: 10px 15px;
   border-radius: 8px;
-  transition: background-color 0.3s, color 0.3s; /* Smooth Transition */
+  transition: background-color 0.3s, color 0.3s;
   margin-bottom: 5px;
 }
 
 .game-list li:hover,
 .status-list li:hover,
-.owner-list li:hover { /* Add hover for .owner-list li */
+.owner-list li:hover {
   background-color: #e1f5fe;
 }
 
@@ -1038,16 +1019,15 @@ onUnmounted(() => {
   color: white;
 }
 
-/* Right Column Styles */
 .right-column {
   width: 250px;
-  position: fixed; /* Fixed position */
-  top: 68px; /* Distance from top (assuming navbar height is 68px) */
-  right: 20px; /* Distance from right */
-  height: calc(100vh - 88px); /* Height to prevent overflow */
-  overflow-y: auto; /* Vertical scroll if content is long */
-  z-index: 100; /* Ensure right-column is above other elements */
-  background-color: #f9f9f9; /* Light background color */
+  position: fixed;
+  top: 68px;
+  right: 20px;
+  height: calc(100vh - 88px);
+  overflow-y: auto;
+  z-index: 100;
+  background-color: #f9f9f9;
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
   padding: 20px;
@@ -1067,23 +1047,23 @@ onUnmounted(() => {
 }
 
 .profile-header img {
-  width: 80px; /* Increase avatar size */
+  width: 80px;
   height: 80px;
   border-radius: 50%;
   margin-bottom: 15px;
   object-fit: cover;
-  border: 2px solid #0073b1; /* Border around avatar */
-  transition: transform 0.3s, box-shadow 0.3s; /* Add transition for effects */
+  border: 2px solid #0073b1;
+  transition: transform 0.3s, box-shadow 0.3s;
 }
 
 .profile-header img:hover {
-  transform: scale(1.05); /* Slight zoom on hover */
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3); /* Add shadow on hover */
+  transform: scale(1.05);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
 }
 
 .profile-header h2 {
   margin: 10px 0;
-  font-size: 15px; /* Increase font size */
+  font-size: 15px;
   font-weight: bold;
   color: #333;
 }
@@ -1100,14 +1080,14 @@ onUnmounted(() => {
 .stat-card1 {
   display: flex;
   align-items: center;
-  background-color: #eef6fb; /* Light background for cards */
+  background-color: #eef6fb;
   padding: 5px 10px;
   border-radius: 8px;
   transition: background-color 0.3s, transform 0.3s, box-shadow 0.3s;
 }
 
 .stat-card1 {
-  justify-content: space-between; /* Space between elements */
+  justify-content: space-between;
 }
 
 .stat-card i,
@@ -1167,13 +1147,12 @@ onUnmounted(() => {
   margin-right: 5px;
 }
 
-/* Content Container Styles */
 .content-container {
   flex-grow: 1;
-  margin: 0 340px; /* Left and right: 250px width + 20px spacing */
+  margin: 0 340px;
   display: flex;
   flex-direction: column;
-  max-width: 1200px; /* Adjust as needed */
+  max-width: 1200px;
 }
 
 .left-column {
@@ -1187,14 +1166,13 @@ onUnmounted(() => {
   color: #333;
 }
 
-/* Modal Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: rgba(0, 0, 0, 0.5); /* Slightly darker background */
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex;
   justify-content: center;
   align-items: center;
@@ -1204,14 +1182,13 @@ onUnmounted(() => {
 .modal-content {
   background-color: #ffffff;
   padding: 30px;
-  width: 500px; /* Adjust width to be consistent */
-  border-radius: 8px; /* Slightly less rounded corners */
+  width: 500px;
+  border-radius: 8px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   position: relative;
   animation: fadeIn 0.3s ease-out;
 }
 
-/* LinkedIn-like Typography */
 .modal-content h2 {
   margin-bottom: 20px;
   font-size: 20px;
@@ -1260,7 +1237,6 @@ onUnmounted(() => {
   background-color: #c0c0c0;
 }
 
-/* Success Modal */
 .success-modal .modal-content {
   text-align: center;
 }
@@ -1271,7 +1247,6 @@ onUnmounted(() => {
   margin-bottom: 10px;
 }
 
-/* Error Modal */
 .error-modal .modal-content {
   text-align: center;
 }
@@ -1282,7 +1257,6 @@ onUnmounted(() => {
   margin-bottom: 10px;
 }
 
-/* Insufficient Funds Modal */
 .deposit-button {
   background-color: #0073b1;
   color: #ffffff;
@@ -1298,29 +1272,27 @@ onUnmounted(() => {
   background-color: #005580;
 }
 
-/* Add Account Modal */
 .new-modal-overlay { 
   position: fixed; 
   top: 0; 
   left: 0; 
   width: 100%; 
   height: 100%; 
-  background-color: rgba(0, 0, 0, 0.5); /* Slightly darker background */ 
+  background-color: rgba(0, 0, 0, 0.5);
   display: flex; 
   justify-content: center; 
   align-items: center; 
   z-index: 1000; 
-  overflow-y: auto; /* Enable vertical scrolling */ 
+  overflow-y: auto;
 } 
 
-/* Modal content styling */ 
 .new-modal-content { 
   background-color: #ffffff; 
   padding: 30px; 
-  max-width: 700px; /* Larger width for modal */ 
-  width: 90%; /* Responsive width */ 
-  max-height: 80vh; /* Limit modal height */ 
-  overflow-y: auto; /* Scroll within modal if content exceeds height */ 
+  max-width: 700px; 
+  width: 90%; 
+  max-height: 80vh; 
+  overflow-y: auto; 
   border-radius: 8px; 
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2); 
   animation: fadeIn 0.3s ease-out; 
@@ -1328,7 +1300,6 @@ onUnmounted(() => {
   flex-direction: column; 
 } 
 
-/* Modal header styling */ 
 .new-modal-content h2 { 
   margin-bottom: 20px; 
   font-size: 20px; 
@@ -1337,21 +1308,18 @@ onUnmounted(() => {
   font-weight: 600;
 } 
 
-/* Form styling */ 
 .new-form-group { 
   display: flex; 
   flex-direction: column; 
   margin-bottom: 15px;
 } 
 
-/* Label styling */ 
 .new-form-group label { 
   font-weight: 600; 
   margin-bottom: 5px; 
   color: #333; 
 } 
 
-/* Input and select styling */ 
 .new-form-group input, .new-form-group select { 
   padding: 10px 12px; 
   font-size: 14px; 
@@ -1361,11 +1329,10 @@ onUnmounted(() => {
 } 
 
 .new-form-group input:focus, .new-form-group select:focus { 
-  border-color: #0073b1; /* Highlight on focus */ 
+  border-color: #0073b1;
   outline: none;
 } 
 
-/* Image upload button styling */ 
 .new-image-input { 
   display: none; 
 } 
@@ -1384,7 +1351,6 @@ onUnmounted(() => {
   font-size: 18px; 
 }
 
-/* Image Preview Styles */
 .selected-images {
   display: flex;
   flex-wrap: wrap;
@@ -1423,7 +1389,6 @@ onUnmounted(() => {
   background-color: #c82333;
 }
 
-/* Modal buttons styling */
 .new-modal-buttons {
   display: flex;
   justify-content: center;
@@ -1431,7 +1396,6 @@ onUnmounted(() => {
   margin-top: 20px;
 }
 
-/* Confirm button styling */
 .new-confirm-button {
   padding: 10px 25px;
   background-color: #0073b1;
@@ -1447,7 +1411,6 @@ onUnmounted(() => {
   background-color: #005580;
 }
 
-/* Cancel button styling */
 .new-cancel-button {
   padding: 10px 25px;
   background-color: #dc3545;
@@ -1463,7 +1426,6 @@ onUnmounted(() => {
   background-color: #c82333;
 }
 
-/* Post Grid Styles */
 .post-grid {
   display: flex;
   flex-wrap: wrap;
@@ -1608,7 +1570,7 @@ onUnmounted(() => {
 }
 
 .reaction-button:active {
-  transform: scale(0.98); /* Press effect */
+  transform: scale(0.98);
 }
 
 .reaction-button i {
@@ -1616,7 +1578,6 @@ onUnmounted(() => {
   margin-right: 5px;
 }
 
-/* Pagination Styles */
 .pagination {
   display: flex;
   justify-content: center;
@@ -1651,7 +1612,6 @@ onUnmounted(() => {
   color: #ffffff;
 }
 
-/* Animations */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -1663,7 +1623,6 @@ onUnmounted(() => {
   }
 }
 
-/* Responsive */
 @media (max-width: 768px) {
   .post-album-container {
     width: calc(50% - 10px);
@@ -1672,7 +1631,7 @@ onUnmounted(() => {
   .container {
     flex-direction: column;
     align-items: center;
-    padding: 10px; /* Change padding for small screens */
+    padding: 10px;
   }
 
   .sidebar,
@@ -1680,14 +1639,14 @@ onUnmounted(() => {
     width: 100%;
     max-width: 600px;
     margin-bottom: 20px;
-    position: static; /* Remove fixed on small screens */
+    position: static;
     height: auto;
     overflow-y: visible;
   }
 
   .content-container {
     max-width: 100%;
-    margin: 0; /* No left and right margin */
+    margin: 0;
   }
 
   .modal-content {
@@ -1703,7 +1662,6 @@ onUnmounted(() => {
     font-size: 12px;
   }
 
-  /* Adjust status-badge for smaller screens */
   .status-badge {
     top: 8px;
     right: 8px;
@@ -1717,13 +1675,11 @@ onUnmounted(() => {
     margin-right: 3px;
   }
 
-  /* Add styles for owner filter on small screens */
   .owner-list li {
     font-size: 12px;
     padding: 8px 12px;
   }
 
-  /* Adjust profile section on small screens */
   .profile-header img {
     width: 60px;
     height: 60px;
@@ -1743,7 +1699,6 @@ onUnmounted(() => {
     padding: 8px 12px;
   }
 
-  /* Carousel adjustments */
   .banner-carousel {
     height: 200px;
   }
@@ -1833,7 +1788,6 @@ onUnmounted(() => {
   right: 10px;
 }
 
-/* Responsive adjustments for carousel */
 @media (max-width: 768px) {
   .banner-carousel {
     height: 200px;
@@ -1846,5 +1800,86 @@ onUnmounted(() => {
   .carousel-caption p {
     font-size: 0.9em;
   }
+}
+.image-preview-modal {
+  position: relative;
+  max-width: 90%;
+  max-height: 90%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.preview-image {
+  width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.close-preview-button {
+  position: absolute;
+  top: 10px;
+  right: 15px;
+  background: transparent;
+  border: none;
+  font-size: 2rem;
+  color: #ffffff;
+  cursor: pointer;
+  text-shadow: 0 0 5px rgba(0,0,0,0.5);
+}
+
+.nav-button {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(0,0,0,0.5);
+  border: none;
+  color: #fff;
+  padding: 10px;
+  cursor: pointer;
+  border-radius: 50%;
+  font-size: 1.2em;
+  transition: background-color 0.3s;
+}
+
+.nav-button:hover {
+  background-color: rgba(0,0,0,0.8);
+}
+
+.prev-button {
+  left: 10px;
+}
+
+.next-button {
+  right: 10px;
+}
+
+.modal-overlay {
+  z-index: 2000;
+}
+.modal-content h2 {
+  font-size: 22px;
+  color: #0073b1;
+}
+
+.modal-content p {
+  font-size: 16px;
+  color: #333;
+  line-height: 1.5;
+}
+
+.close-button {
+  background-color: #0073b1;
+  color: #fff;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.close-button:hover {
+  background-color: #005580;
 }
 </style>

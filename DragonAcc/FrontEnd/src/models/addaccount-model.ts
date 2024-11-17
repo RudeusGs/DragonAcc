@@ -1,4 +1,4 @@
-//đây là file addaccount-model
+
 export interface GameInforBase {
     id?: number | null;
     userId?: number | null;

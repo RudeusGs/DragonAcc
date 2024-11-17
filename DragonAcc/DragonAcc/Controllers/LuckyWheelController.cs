@@ -52,14 +52,13 @@ namespace DragonAcc.Controllers
                 return Response(e.Message, 500);
             }
         }
-
         [Authorize]
         [HttpPost("spin")]
-        public async Task<IActionResult> Spin()
+        public async Task<IActionResult> Spin([FromQuery] int prizeId)
         {
             try
             {
-                var result = await _luckyWheelService.SpinWheel();
+                var result = await _luckyWheelService.SpinWheel(prizeId);
                 return Response(result);
             }
             catch (Exception e)
@@ -67,5 +66,6 @@ namespace DragonAcc.Controllers
                 return Response(e.Message, 500);
             }
         }
+
     }
 }
