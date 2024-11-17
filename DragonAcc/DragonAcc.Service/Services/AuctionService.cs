@@ -6,18 +6,27 @@ using DragonAcc.Service.Models;
 using DragonAcc.Service.Models.Auction;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+////using Microsoft.AspNetCore.SignalR;
+//using DragonAcc.Hubs; // Thêm namespace chứa AuctionHub
 
 namespace DragonAcc.Service.Services
 {
     public class AuctionService : BaseService, IAuctionService
     {
         private readonly IFtpDirectoryService _ftpDirectoryService;
+        //private readonly IHubContext<AuctionHub> _hubContext;
 
-        public AuctionService(DataContext dataContext, IUserService userService, IFtpDirectoryService ftpDirectoryService)
-            : base(dataContext, userService)
-        {
-            _ftpDirectoryService = ftpDirectoryService;
-        }
+    public AuctionService(
+        DataContext dataContext,
+        IUserService userService,
+        IFtpDirectoryService ftpDirectoryService
+        //IHubContext<AuctionHub> hubContext
+        )
+        : base(dataContext, userService)
+    {
+        _ftpDirectoryService = ftpDirectoryService;
+        //_hubContext = hubContext;
+    }
 
         private async Task<List<string>> UploadFiles(int? accountId, List<IFormFile>? files)
         {
@@ -66,7 +75,7 @@ namespace DragonAcc.Service.Services
                         StartPrice = model.StartPrice,
                         CurrentPrice = model.StartPrice,
                         StartDateTime = model.StartDateTime,
-                        Status = "Sắp tới",
+                        Status = true,
                         TimeAuction = timeAuction.ToString(@"hh\:mm\:ss"),
                         WinnerId = null,
                         CreatedDate = DateTime.Now,
@@ -282,6 +291,126 @@ namespace DragonAcc.Service.Services
             };
 
             return new ApiResult(winnerInfo);
+        }
+
+        public Task<ApiResult> GetAllAuctionDetail(int auctionId)
+        {
+            var auctionDetails = _dataContext.AuctionDetails.Where(x => x.AuctionId == auctionId).ToList();
+            return Task.FromResult(new ApiResult(auctionDetails));
+        }
+
+        public async Task<ApiResult> AddAuctionDetail(AddAuctionDetailModel model)
+        {
+            // Tìm phiên đấu giá theo ID
+            var auction = await _dataContext.Auctions.FirstOrDefaultAsync(x => x.Id == model.AuctionId);
+
+            if (auction == null)
+            {
+                return new ApiResult { Message = "Không tìm thấy phiên đấu giá." };
+            }
+
+            // Kiểm tra nếu phiên đấu giá đã kết thúc
+            if (auction.Status != true)
+            {
+                return new ApiResult { Message = "Phiên đấu giá này đã kết thúc." };
+            }
+
+            // Kiểm tra nếu thời gian hiện tại vẫn chưa tới thời gian bắt đầu của phiên đấu giá
+            if (DateTime.Now < auction.StartDateTime)
+            {
+                return new ApiResult { Message = "Phiên đấu giá này chưa bắt đầu." };
+            }
+
+            // Kiểm tra RaisePrice có hợp lệ không (phải lớn hơn CurrentPrice)
+            if (!decimal.TryParse(auction.CurrentPrice, out decimal currentAuctionPrice))
+            {
+                return new ApiResult { Message = "Giá hiện tại của phiên đấu giá không hợp lệ." };
+            }
+
+            if (!model.RaisePrice.HasValue || model.RaisePrice.Value <= currentAuctionPrice)
+            {
+                return new ApiResult { Message = "Giá đặt mới phải cao hơn giá hiện tại." };
+            }
+
+            using var tran = await _dataContext.Database.BeginTransactionAsync();
+            try
+            {
+                // Cập nhật thông tin người dùng đặt giá thầu
+                var user = await _dataContext.Users.FirstOrDefaultAsync(x => x.Id == model.UserID);
+                if (user == null)
+                {
+                    return new ApiResult { Message = "Người dùng không tồn tại." };
+                }
+
+                if (!decimal.TryParse(user.Balance, out decimal userBalance) || userBalance < model.RaisePrice.Value)
+                {
+                    return new ApiResult { Message = "Số dư không đủ để đặt giá thầu này." };
+                }
+
+                // Trả lại tiền cho người chiến thắng trước đó nếu có
+                if (auction.WinnerId.HasValue)
+                {
+                    var previousWinner = await _dataContext.Users.FirstOrDefaultAsync(x => x.Id == auction.WinnerId.Value);
+                    if (previousWinner != null)
+                    {
+                        if (!decimal.TryParse(previousWinner.Balance, out decimal previousUserBalance))
+                        {
+                            previousUserBalance = 0;
+                        }
+                        previousWinner.Balance = (previousUserBalance + currentAuctionPrice).ToString();
+                        _dataContext.Users.Update(previousWinner);
+                    }
+                }
+
+                // Cập nhật số dư người dùng và thông tin phiên đấu giá
+                user.Balance = (userBalance - model.RaisePrice.Value).ToString();
+                _dataContext.Users.Update(user);
+
+                auction.WinnerId = model.UserID;
+                auction.CurrentPrice = model.RaisePrice.Value.ToString();
+                auction.UpdatedDate = DateTime.Now;
+
+                // Thêm bản ghi vào bảng AuctionDetail
+                var auctionDetail = new AuctionDetail
+                {
+                    AuctionId = model.AuctionId.Value,
+                    UserID = model.UserID.Value,
+                    RaisePrice = model.RaisePrice.Value,
+                    CreatedDate = DateTime.Now
+                };
+
+                _dataContext.AuctionDetails.Add(auctionDetail);
+
+                // Lưu các thay đổi
+                await _dataContext.SaveChangesAsync();
+                await tran.CommitAsync();
+
+                return new ApiResult { Message = "Đặt giá thầu thành công.", Data = auctionDetail };
+            }
+            catch (Exception ex)
+            {
+                await tran.RollbackAsync();
+                return new ApiResult { Message = $"Lỗi khi đặt giá thầu: {ex.Message}" };
+            }
+        }
+
+
+        public async Task<ApiResult> EndAuction(int auctionId)
+        {
+            var auction = await _dataContext.Auctions.FirstOrDefaultAsync(x => x.Id == auctionId);
+
+            if (auction == null)
+            {
+                return new ApiResult { Message = "Không tìm thấy phiên đấu giá." };
+            }
+
+            // Cập nhật trạng thái của phiên đấu giá thành false (kết thúc)
+            auction.Status = false;
+            auction.UpdatedDate = DateTime.Now;
+
+            await _dataContext.SaveChangesAsync();
+
+            return new ApiResult { Message = "Phiên đấu giá đã kết thúc thành công." };
         }
 
     }

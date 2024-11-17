@@ -30,5 +30,7 @@ namespace DragonAcc.Infrastructure
         public DbSet<Notification>  Notifications { get; set; }
         public DbSet<StatisticalForAdmin> StatisticalForAdmins { get; set; }
         public DbSet<WithDrawMoney> WithDrawMoney { get; set; }
+        public DbSet<AuctionDetail> AuctionDetails { get; set; }
+
     }
 }

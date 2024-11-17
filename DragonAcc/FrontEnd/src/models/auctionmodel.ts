@@ -1,7 +1,7 @@
 export interface AddAuctionModel {
   auctionName?: string;
   prize?: string;
-  files?: File[]; 
+  files?: File[];
   image?: string;
   startPrice?: string;
   currentPrice?: string;
@@ -21,23 +21,18 @@ export interface UpdateAuctionModel {
   startDateTime?: string;
   timeAuction?: string;
 }
-
-export interface UpdateCurrentPriceModel {
-  id?: number;
-  currentPrice?: string;
-  winner?: number;
-}
-
+// Trong '@/models/auctionmodel.ts'
+// Trong '@/models/auctionmodel.ts'
 export interface AuctionModel {
   id: number;
-  prize: string;
   auctionName: string;
-  startPrice: string;
-  currentPrice: string;
-  startDateTime: string;
+  prize: string;
   image: string;
+  startPrice: number;
+  currentPrice: number;
+  startDateTime: string;
   timeAuction: string;
-  status: string;
-  winner?: number;
-  winnerName?: string;
+  status: boolean;
+  winnerId?: number;
 }
+
