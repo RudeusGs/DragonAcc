@@ -8,9 +8,11 @@
         throw new Error('Login failed');
       }
       },
-
       logout:()=>{
           baseApi.postAuthenticate("Authenticate/Logout",null);
+      },
+      getRoleById: async (id: number) => {
+        return await baseApi.get(`Authenticate/roles?userId=${id}`);
       }, 
   };
   export interface LoginModel{

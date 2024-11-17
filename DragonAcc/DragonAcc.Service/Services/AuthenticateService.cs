@@ -198,5 +198,33 @@ namespace DragonAcc.Service.Services
                 Expires = expires
             };
         }
+        public async Task<ApiResult> GetUserRoles(int userId)
+        {
+            try
+            {
+                var user = await _userManager.FindByIdAsync(userId.ToString());
+                if (user == null || user.DeleteDate.HasValue)
+                {
+                    return new ApiResult()
+                    {
+                        Message = "User not found or has been deleted."
+                    };
+                }
+
+                var roles = await _userManager.GetRolesAsync(user);
+                return new ApiResult()
+                {
+                    Data = roles
+                };
+            }
+            catch (Exception e)
+            {
+                return new ApiResult()
+                {
+                    Message = "An error occurred while fetching user roles."
+                };
+            }
+        }
+
     }
 }

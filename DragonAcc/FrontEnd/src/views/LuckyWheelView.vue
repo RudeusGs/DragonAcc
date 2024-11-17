@@ -1,12 +1,22 @@
 <template>
   <div class="scene">
+    <!-- Falling Gifts Animation -->
+    <div class="falling-gifts">
+      <i v-for="n in 10" :key="n" class="fas fa-gift gift-icon"></i>
+    </div>
+
+    <!-- Fireworks Animation -->
+    <div v-if="showFireworks" class="fireworks">
+      <div class="firework" v-for="n in 20" :key="n"></div>
+    </div>
+
     <div class="game-container">
       <!-- Card Section -->
       <div class="card-section">
         <div class="card-container" ref="cardContainer">
           <div
             v-for="(card, index) in shuffledRewards"
-            :key="index"
+            :key="card.id"
             class="card"
             :class="{ flipped: card.isFlipped }"
             :style="getCardStyle(index)"
@@ -27,20 +37,30 @@
       <div class="prize-section">
         <h2><i class="fas fa-trophy"></i> Phần Thưởng Của Bạn</h2>
         <ul class="prize-list">
-          <!-- Limit display to the first 9 items using slice -->
           <li v-for="(prize, index) in userPrizes.slice(0, 9)" :key="index">
             <span>{{ index + 1 }}. {{ prize.prize }}</span>
             <span>{{ formatDate(prize.createdDate) }}</span>
-            <span class="btn-nhan"><button>Nhận</button></span>
+            <span class="btn-nhan">
+              <button @click="showContactAdminModal">Nhận</button>
+            </span>
           </li>
         </ul>
       </div>
     </div>
-  </div>
-  <div v-if="showInsufficientCoinsModal" class="insufficient-coins-modal-overlay">
-    <div class="insufficient-coins-modal">
-      <p>Bạn không đủ xu</p>
-      <button @click="closeModal">Đóng</button>
+    <!-- Modal thông báo liên hệ Admin -->
+    <div v-if="showContactAdmin" class="modal-overlay">
+      <div class="modal-content">
+        <i class="fa fa-smile-wink"></i>
+        <p>Chúc bạn may mắn lần sau</p>
+        <button @click="closeContactAdminModal">Đóng</button>
+      </div>
+    </div>
+    <!-- Modal thông báo không đủ xu -->
+    <div v-if="showInsufficientCoinsModal" class="modal-overlay">
+      <div class="modal-content">
+        <p>Bạn không đủ xu</p>
+        <button @click="closeModal">Đóng</button>
+      </div>
     </div>
   </div>
 </template>
@@ -51,7 +71,7 @@ import { luckyWheelListPrizeApi } from '@/api/luckywheellistprize.api';
 import { userStore } from '@/stores/auth';
 
 export default {
-  name: 'CardFlip',
+  name: 'LuckyWheelView',
   data() {
     return {
       rewards: [],
@@ -63,6 +83,8 @@ export default {
       userPrizes: [],
       userId: null,
       showInsufficientCoinsModal: false,
+      showContactAdmin: false,
+      showFireworks: false, // Biến để kiểm soát hiển thị pháo hoa
     };
   },
   async created() {
@@ -73,7 +95,7 @@ export default {
     await this.fetchRewards();
     await this.fetchUserPrizes();
     this.shuffledRewards = [...this.rewards];
-    this.positions = Array.from({ length: 9 }, (_, i) => i);
+    this.positions = Array.from({ length: this.rewards.length }, (_, i) => i);
   },
   methods: {
     async fetchRewards() {
@@ -93,7 +115,9 @@ export default {
     },
     async fetchUserPrizes() {
       try {
-        const result = await luckyWheelListPrizeApi.getByIdLuckyWheel(this.userId);
+        const result = await luckyWheelListPrizeApi.getByIdLuckyWheel(
+          this.userId
+        );
         if (result.isSuccess) {
           this.userPrizes = result.data
             .sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate))
@@ -119,18 +143,23 @@ export default {
     },
     async spinWheel(index) {
       try {
-        const result = await luckyWheelApi.spin();
+        const prizeId = this.shuffledRewards[index].id;
+        const result = await luckyWheelApi.spin(prizeId);
         if (result.isSuccess) {
           this.$set(this.shuffledRewards, index, {
             ...this.shuffledRewards[index],
-            prize: result.prize,
+            prize: result.data.prize,
             isFlipped: true,
           });
           await this.fetchUserPrizes();
-        }
-        else if (result.message === "Bạn không đủ xu để quay!") {
+
+          // Kiểm tra nếu trúng 100000RP để kích hoạt pháo hoa
+          if (result.data.prize === '100000RP') {
+            this.triggerFireworks();
+          }
+        } else if (result.message === 'Bạn không đủ xu để quay!') {
           this.showInsufficientCoinsModal = true;
-        }  else {
+        } else {
           console.error(result.message);
         }
       } catch (error) {
@@ -174,7 +203,10 @@ export default {
         j = Math.floor(Math.random() * this.positions.length);
       }
 
-      [this.positions[i], this.positions[j]] = [this.positions[j], this.positions[i]];
+      [this.positions[i], this.positions[j]] = [
+        this.positions[j],
+        this.positions[i],
+      ];
       this.applySwapAnimation(i, j);
     },
     applySwapAnimation(i, j) {
@@ -185,21 +217,15 @@ export default {
       card1.style.transition = 'transform 0.5s ease-in-out';
       card2.style.transition = 'transform 0.5s ease-in-out';
 
-      const containerRect = this.$refs.cardContainer.getBoundingClientRect();
       const rect1 = card1.getBoundingClientRect();
       const rect2 = card2.getBoundingClientRect();
 
       const deltaX = rect2.left - rect1.left;
       const deltaY = rect2.top - rect1.top;
 
-      // Adjust deltas to be relative to the container
-      const adjustedDeltaX = deltaX;
-      const adjustedDeltaY = deltaY;
+      card1.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+      card2.style.transform = `translate(${-deltaX}px, ${-deltaY}px)`;
 
-      card1.style.transform = `translate(${adjustedDeltaX}px, ${adjustedDeltaY}px)`;
-      card2.style.transform = `translate(${-adjustedDeltaX}px, ${-adjustedDeltaY}px)`;
-
-      // Ensure the browser applies the transform
       requestAnimationFrame(() => {
         setTimeout(() => {
           card1.style.transform = '';
@@ -229,6 +255,19 @@ export default {
     closeModal() {
       this.showInsufficientCoinsModal = false;
     },
+    showContactAdminModal() {
+      this.showContactAdmin = true;
+    },
+    closeContactAdminModal() {
+      this.showContactAdmin = false;
+    },
+    // Phương thức kích hoạt pháo hoa
+    triggerFireworks() {
+      this.showFireworks = true;
+      setTimeout(() => {
+        this.showFireworks = false;
+      }, 3000); // Hiển thị pháo hoa trong 3 giây
+    },
   },
 };
 </script>
@@ -249,18 +288,20 @@ body {
 }
 
 .scene {
+  position: relative; /* Để chứa các hiệu ứng absolute */
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh; /* Tăng chiều cao để phù hợp với kích thước vừa phải */
-  gap: 30px; /* Tăng khoảng cách giữa các phần */
+  height: 100vh;
+  gap: 30px;
   transform-origin: center;
+  overflow: hidden; /* Ẩn các hiệu ứng rơi ra ngoài */
 }
 
 .game-container {
   display: flex;
   align-items: flex-start;
-  gap: 40px; /* Tăng khoảng cách giữa các phần trong game-container */
+  gap: 40px;
 }
 
 .card-section {
@@ -272,16 +313,16 @@ body {
 
 .card-container {
   display: grid;
-  grid-template-columns: repeat(3, 120px); /* Điều chỉnh kích thước card */
-  grid-template-rows: repeat(3, 160px); /* Điều chỉnh kích thước card */
-  gap: 10px; /* Giảm khoảng cách giữa các thẻ */
+  grid-template-columns: repeat(3, 120px);
+  grid-template-rows: repeat(3, 160px);
+  gap: 10px;
   position: relative;
   overflow: hidden;
 }
 
 .card {
-  width: 120px; /* Điều chỉnh kích thước card */
-  height: 160px; /* Điều chỉnh kích thước card */
+  width: 120px;
+  height: 160px;
   perspective: 1000px;
   cursor: pointer;
 }
@@ -289,7 +330,7 @@ body {
 .card .card-face {
   width: 100%;
   height: 100%;
-  border-radius: 15px; /* Giảm độ bo tròn */
+  border-radius: 15px;
   background-color: #fff;
   position: absolute;
   backface-visibility: hidden;
@@ -304,15 +345,15 @@ body {
 .card .front {
   background: linear-gradient(45deg, #ff6b6b, #f94d6a);
   color: #fff;
-  font-size: 30px; /* Điều chỉnh kích thước icon */
+  font-size: 30px;
 }
 
 .card .back {
   background: #fff;
   color: #333;
   transform: rotateY(180deg);
-  font-size: 14px; /* Điều chỉnh kích thước font chữ */
-  padding: 12px; /* Điều chỉnh padding */
+  font-size: 14px;
+  padding: 12px;
   text-align: center;
 }
 
@@ -325,21 +366,21 @@ body {
 }
 
 .flip-all-button {
-  margin-top: 20px; /* Giảm khoảng cách từ card-container đến nút */
-  padding: 12px 30px; /* Điều chỉnh padding để nút vừa vặn hơn */
-  font-size: 16px; /* Điều chỉnh kích thước font chữ */
+  margin-top: 20px;
+  padding: 12px 30px;
+  font-size: 16px;
   background-color: #1dd1a1;
   color: #fff;
   border: none;
-  border-radius: 40px; /* Giảm độ bo tròn */
+  border-radius: 40px;
   cursor: pointer;
   transition: background-color 0.3s, transform 0.2s;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .flip-all-button i {
-  margin-right: 10px; /* Giảm khoảng cách giữa icon và text */
-  font-size: 18px; /* Điều chỉnh kích thước icon */
+  margin-right: 10px;
+  font-size: 18px;
 }
 
 .flip-all-button:hover {
@@ -348,25 +389,25 @@ body {
 }
 
 .prize-section {
-  width: 350px; /* Điều chỉnh độ rộng của prize-section */
-  padding: 25px; /* Điều chỉnh padding */
+  width: 350px;
+  padding: 25px;
   background-color: #ffffffcc;
-  border-radius: 15px; /* Giảm độ bo tròn */
+  border-radius: 15px;
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
 }
 
 .prize-section h2 {
-  margin-bottom: 20px; /* Tăng khoảng cách dưới tiêu đề */
-  font-size: 18px; /* Điều chỉnh kích thước font chữ */
+  margin-bottom: 20px;
+  font-size: 18px;
   text-align: center;
   color: #333;
 }
 
 .prize-section h2 i {
   color: #fbc531;
-  margin-right: 8px; /* Giảm khoảng cách giữa icon và text */
-  font-size: 20px; /* Điều chỉnh kích thước icon */
+  margin-right: 8px;
+  font-size: 20px;
 }
 
 .prize-list {
@@ -377,10 +418,10 @@ body {
 
 .prize-list li {
   background-color: #f1f2f6;
-  padding: 12px; /* Giảm padding */
-  margin-bottom: 10px; /* Giảm khoảng cách giữa các phần thưởng */
-  border-radius: 10px; /* Giảm độ bo tròn */
-  font-size: 12px; /* Giảm kích thước font chữ */
+  padding: 12px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  font-size: 12px;
   color: #555;
   display: flex;
   align-items: center;
@@ -396,18 +437,18 @@ body {
 }
 
 .prize-list li span:last-child {
-  font-size: 14px; /* Điều chỉnh kích thước font chữ */
+  font-size: 14px;
   color: #999;
 }
 
 .btn-nhan button {
   margin-left: 10px;
-  padding: 6px 12px; /* Giảm padding để nút vừa vặn hơn */
-  font-size: 12px; /* Điều chỉnh font-size */
+  padding: 6px 12px;
+  font-size: 12px;
   background-color: #1dd1a1;
   color: #fff;
   border: none;
-  border-radius: 6px; /* Giảm độ bo tròn */
+  border-radius: 6px;
   cursor: pointer;
   transition: background-color 0.3s;
 }
@@ -416,7 +457,8 @@ body {
   background-color: #10ac84;
 }
 
-.insufficient-coins-modal-overlay {
+/* Modal Styles */
+.modal-overlay {
   position: fixed;
   top: 0;
   left: 0;
@@ -429,38 +471,331 @@ body {
   z-index: 1000;
 }
 
-.insufficient-coins-modal {
+.modal-content {
   background-color: #fff;
-  padding: 20px; /* Giảm padding */
-  border-radius: 10px; /* Giảm độ bo tròn */
+  padding: 30px;
+  border-radius: 15px;
   text-align: center;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  max-width: 80%;
 }
 
-.insufficient-coins-modal p {
-  font-size: 16px; /* Điều chỉnh kích thước font chữ */
-  margin-bottom: 15px; /* Giảm khoảng cách dưới text */
+.modal-content i {
+  font-size: 90px;
+  color: #fbc531;
 }
 
-.insufficient-coins-modal button {
-  padding: 8px 16px; /* Điều chỉnh padding để nút vừa vặn hơn */
+.modal-content p {
+  font-size: 18px;
+  margin-bottom: 20px;
+  color: #333;
+}
+
+.modal-content button {
+  padding: 10px 20px;
   background-color: #1dd1a1;
   color: #fff;
   border: none;
-  border-radius: 6px; /* Giảm độ bo tròn */
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 14px; /* Điều chỉnh kích thước font chữ */
+  font-size: 16px;
+  transition: background-color 0.3s;
 }
 
-.insufficient-coins-modal button:hover {
+.modal-content button:hover {
   background-color: #10ac84;
 }
 
+/* Falling Gifts Styles */
+.falling-gifts {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none; /* Không can thiệp vào các tương tác khác */
+  overflow: hidden;
+  z-index: 1;
+}
+
+.gift-icon {
+  position: absolute;
+  top: -50px;
+  font-size: 24px;
+  color: #ff6b6b;
+  animation: fall 5s infinite;
+}
+
+@keyframes fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(110vh) rotate(360deg);
+    opacity: 0;
+  }
+}
+
+/* Tạo các vị trí ngẫu nhiên cho quà */
+.falling-gifts .fa-gift:nth-child(1) {
+  left: 10%;
+  animation-delay: 0s;
+}
+.falling-gifts .fa-gift:nth-child(2) {
+  left: 20%;
+  animation-delay: 1s;
+}
+.falling-gifts .fa-gift:nth-child(3) {
+  left: 30%;
+  animation-delay: 2s;
+}
+.falling-gifts .fa-gift:nth-child(4) {
+  left: 40%;
+  animation-delay: 3s;
+}
+.falling-gifts .fa-gift:nth-child(5) {
+  left: 50%;
+  animation-delay: 4s;
+}
+.falling-gifts .fa-gift:nth-child(6) {
+  left: 60%;
+  animation-delay: 0.5s;
+}
+.falling-gifts .fa-gift:nth-child(7) {
+  left: 70%;
+  animation-delay: 1.5s;
+}
+.falling-gifts .fa-gift:nth-child(8) {
+  left: 80%;
+  animation-delay: 2.5s;
+}
+.falling-gifts .fa-gift:nth-child(9) {
+  left: 90%;
+  animation-delay: 3.5s;
+}
+.falling-gifts .fa-gift:nth-child(10) {
+  left: 5%;
+  animation-delay: 4.5s;
+}
+
+/* Fireworks Styles */
+.fireworks {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200px;
+  height: 200px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.firework {
+  position: absolute;
+  width: 4px;
+  height: 100px;
+  background: radial-gradient(circle, #fbc531, #ff793f);
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) rotate(0deg);
+  animation: shoot 1s forwards;
+}
+
+.firework:nth-child(1) {
+  transform: translateX(-50%) rotate(0deg);
+  animation-delay: 0s;
+}
+.firework:nth-child(2) {
+  transform: translateX(-50%) rotate(45deg);
+  animation-delay: 0.1s;
+}
+.firework:nth-child(3) {
+  transform: translateX(-50%) rotate(90deg);
+  animation-delay: 0.2s;
+}
+.firework:nth-child(4) {
+  transform: translateX(-50%) rotate(135deg);
+  animation-delay: 0.3s;
+}
+.firework:nth-child(5) {
+  transform: translateX(-50%) rotate(180deg);
+  animation-delay: 0.4s;
+}
+.firework:nth-child(6) {
+  transform: translateX(-50%) rotate(225deg);
+  animation-delay: 0.5s;
+}
+.firework:nth-child(7) {
+  transform: translateX(-50%) rotate(270deg);
+  animation-delay: 0.6s;
+}
+.firework:nth-child(8) {
+  transform: translateX(-50%) rotate(315deg);
+  animation-delay: 0.7s;
+}
+.firework:nth-child(9) {
+  transform: translateX(-50%) rotate(30deg);
+  animation-delay: 0.8s;
+}
+.firework:nth-child(10) {
+  transform: translateX(-50%) rotate(60deg);
+  animation-delay: 0.9s;
+}
+.firework:nth-child(11) {
+  transform: translateX(-50%) rotate(120deg);
+  animation-delay: 1s;
+}
+.firework:nth-child(12) {
+  transform: translateX(-50%) rotate(150deg);
+  animation-delay: 1.1s;
+}
+.firework:nth-child(13) {
+  transform: translateX(-50%) rotate(210deg);
+  animation-delay: 1.2s;
+}
+.firework:nth-child(14) {
+  transform: translateX(-50%) rotate(240deg);
+  animation-delay: 1.3s;
+}
+.firework:nth-child(15) {
+  transform: translateX(-50%) rotate(300deg);
+  animation-delay: 1.4s;
+}
+.firework:nth-child(16) {
+  transform: translateX(-50%) rotate(330deg);
+  animation-delay: 1.5s;
+}
+.firework:nth-child(17) {
+  transform: translateX(-50%) rotate(15deg);
+  animation-delay: 1.6s;
+}
+.firework:nth-child(18) {
+  transform: translateX(-50%) rotate(75deg);
+  animation-delay: 1.7s;
+}
+.firework:nth-child(19) {
+  transform: translateX(-50%) rotate(135deg);
+  animation-delay: 1.8s;
+}
+.firework:nth-child(20) {
+  transform: translateX(-50%) rotate(195deg);
+  animation-delay: 1.9s;
+}
+
+@keyframes shoot {
+  0% {
+    height: 100px;
+    opacity: 1;
+  }
+  100% {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+/* Additional Styles for Fireworks Effect */
+.fireworks::before,
+.fireworks::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
+  animation: explode 1.5s forwards;
+}
+
+@keyframes explode {
+  from {
+    transform: translate(-50%, -50%) scale(0.1);
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
+}
+
+/* Prize Section Styles */
+.prize-section {
+  width: 350px;
+  padding: 25px;
+  background-color: #ffffffcc;
+  border-radius: 15px;
+  backdrop-filter: blur(10px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.prize-section h2 {
+  margin-bottom: 20px;
+  font-size: 18px;
+  text-align: center;
+  color: #333;
+}
+
+.prize-section h2 i {
+  color: #fbc531;
+  margin-right: 8px;
+  font-size: 20px;
+}
+
+.prize-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.prize-list li {
+  background-color: #f1f2f6;
+  padding: 12px;
+  margin-bottom: 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  color: #555;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.prize-list li:last-child {
+  margin-bottom: 0;
+}
+
+.prize-list li span:first-child {
+  font-weight: 600;
+}
+
+.prize-list li span:last-child {
+  font-size: 14px;
+  color: #999;
+}
+
+.btn-nhan button {
+  margin-left: 10px;
+  padding: 6px 12px;
+  font-size: 12px;
+  background-color: #1dd1a1;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.btn-nhan button:hover {
+  background-color: #10ac84;
+}
+
+/* Responsive Styles */
 @media screen and (max-width: 768px) {
   .game-container {
     flex-direction: column;
     align-items: center;
-    gap: 20px; /* Điều chỉnh khoảng cách cho màn hình nhỏ */
+    gap: 20px;
   }
 
   .scene {
@@ -469,37 +804,37 @@ body {
   }
 
   .card-container {
-    grid-template-columns: repeat(3, 120px); /* Giảm kích thước cho màn hình nhỏ */
-    grid-template-rows: repeat(3, 160px);
+    grid-template-columns: repeat(3, 100px);
+    grid-template-rows: repeat(3, 140px);
     gap: 10px;
   }
 
   .card {
-    width: 120px; /* Giảm kích thước cho màn hình nhỏ */
-    height: 160px;
+    width: 100px;
+    height: 140px;
   }
 
   .card .front {
-    font-size: 30px; /* Giảm kích thước icon cho màn hình nhỏ */
+    font-size: 24px;
   }
 
   .card .back {
-    font-size: 14px; /* Giảm kích thước font chữ cho màn hình nhỏ */
-    padding: 12px;
+    font-size: 12px;
+    padding: 8px;
   }
 
   .flip-all-button {
-    padding: 12px 30px; /* Điều chỉnh padding cho màn hình nhỏ */
-    font-size: 16px;
+    padding: 10px 25px;
+    font-size: 14px;
   }
 
   .flip-all-button i {
-    margin-right: 10px;
-    font-size: 18px;
+    margin-right: 8px;
+    font-size: 16px;
   }
 
   .prize-section {
-    width: 90%; /* Điều chỉnh độ rộng cho màn hình nhỏ */
+    width: 90%;
     padding: 20px;
   }
 
@@ -518,7 +853,7 @@ body {
   }
 
   .prize-list li span:last-child {
-    font-size: 14px;
+    font-size: 12px;
   }
 
   .btn-nhan button {
@@ -526,19 +861,176 @@ body {
     font-size: 12px;
   }
 
-  .insufficient-coins-modal {
-    padding: 15px;
+  .modal-content {
+    padding: 20px;
     border-radius: 10px;
   }
 
-  .insufficient-coins-modal p {
+  .modal-content p {
     font-size: 16px;
     margin-bottom: 15px;
   }
 
-  .insufficient-coins-modal button {
+  .modal-content button {
     padding: 8px 16px;
     font-size: 14px;
   }
+}
+
+/* Additional Styles */
+.falling-gifts .fa-gift {
+  animation: fall 5s infinite;
+}
+
+/* Fireworks Additional Styles */
+.fireworks {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200px;
+  height: 200px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.firework {
+  position: absolute;
+  width: 4px;
+  height: 100px;
+  background: radial-gradient(circle, #fbc531, #ff793f);
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) rotate(0deg);
+  animation: shoot 1s forwards;
+}
+
+.firework:nth-child(1) {
+  transform: translateX(-50%) rotate(0deg);
+  animation-delay: 0s;
+}
+.firework:nth-child(2) {
+  transform: translateX(-50%) rotate(45deg);
+  animation-delay: 0.1s;
+}
+.firework:nth-child(3) {
+  transform: translateX(-50%) rotate(90deg);
+  animation-delay: 0.2s;
+}
+.firework:nth-child(4) {
+  transform: translateX(-50%) rotate(135deg);
+  animation-delay: 0.3s;
+}
+.firework:nth-child(5) {
+  transform: translateX(-50%) rotate(180deg);
+  animation-delay: 0.4s;
+}
+.firework:nth-child(6) {
+  transform: translateX(-50%) rotate(225deg);
+  animation-delay: 0.5s;
+}
+.firework:nth-child(7) {
+  transform: translateX(-50%) rotate(270deg);
+  animation-delay: 0.6s;
+}
+.firework:nth-child(8) {
+  transform: translateX(-50%) rotate(315deg);
+  animation-delay: 0.7s;
+}
+.firework:nth-child(9) {
+  transform: translateX(-50%) rotate(30deg);
+  animation-delay: 0.8s;
+}
+.firework:nth-child(10) {
+  transform: translateX(-50%) rotate(60deg);
+  animation-delay: 0.9s;
+}
+.firework:nth-child(11) {
+  transform: translateX(-50%) rotate(120deg);
+  animation-delay: 1s;
+}
+.firework:nth-child(12) {
+  transform: translateX(-50%) rotate(150deg);
+  animation-delay: 1.1s;
+}
+.firework:nth-child(13) {
+  transform: translateX(-50%) rotate(210deg);
+  animation-delay: 1.2s;
+}
+.firework:nth-child(14) {
+  transform: translateX(-50%) rotate(240deg);
+  animation-delay: 1.3s;
+}
+.firework:nth-child(15) {
+  transform: translateX(-50%) rotate(300deg);
+  animation-delay: 1.4s;
+}
+.firework:nth-child(16) {
+  transform: translateX(-50%) rotate(330deg);
+  animation-delay: 1.5s;
+}
+.firework:nth-child(17) {
+  transform: translateX(-50%) rotate(15deg);
+  animation-delay: 1.6s;
+}
+.firework:nth-child(18) {
+  transform: translateX(-50%) rotate(75deg);
+  animation-delay: 1.7s;
+}
+.firework:nth-child(19) {
+  transform: translateX(-50%) rotate(135deg);
+  animation-delay: 1.8s;
+}
+.firework:nth-child(20) {
+  transform: translateX(-50%) rotate(195deg);
+  animation-delay: 1.9s;
+}
+
+@keyframes shoot {
+  0% {
+    height: 100px;
+    opacity: 1;
+  }
+  100% {
+    height: 0;
+    opacity: 0;
+  }
+}
+
+.fireworks::before,
+.fireworks::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200px;
+  height: 200px;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background: radial-gradient(circle, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 70%);
+  animation: explode 1.5s forwards;
+}
+
+@keyframes explode {
+  from {
+    transform: translate(-50%, -50%) scale(0.1);
+    opacity: 1;
+  }
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
+}
+
+/* Additional Styles for Fireworks Effect */
+.fireworks {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200px;
+  height: 200px;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 2;
 }
 </style>

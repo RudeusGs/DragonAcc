@@ -7,6 +7,7 @@ namespace DragonAcc.Service.Interfaces
     {
         Task<ApiResult> Register(RegisterModel model);
         Task<ApiResult> Login(LoginModel model);
+        Task<ApiResult> GetUserRoles(int userId);
 
     }
 }

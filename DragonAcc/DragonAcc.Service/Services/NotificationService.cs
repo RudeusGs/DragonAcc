@@ -26,12 +26,27 @@ namespace DragonAcc.Service.Services
             var currentUserId = _userService.UserId;
             var notification = await _dataContext.Notifications
                 .FirstOrDefaultAsync(x => x.Id == id && x.UserId == currentUserId);
-            notification.IsRead = true;
-                await _dataContext.SaveChangesAsync();
+
+            if (notification == null)
+            {
                 return new ApiResult
                 {
-                    Data = notification
+
+                    Message = "Thông báo không tồn tại hoặc không thuộc quyền của bạn."
                 };
+            }
+            if (!notification.IsRead)
+            {
+                notification.IsRead = true;
+                await _dataContext.SaveChangesAsync();
+            }
+
+            return new ApiResult
+            {
+                Data = notification,
+                Message = "Đánh dấu thông báo là đã đọc thành công."
+            };
         }
+
     }
 }

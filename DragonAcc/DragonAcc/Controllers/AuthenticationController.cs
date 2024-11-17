@@ -1,5 +1,6 @@
 ﻿using DragonAcc.Service.Interfaces;
 using DragonAcc.Service.Models.Authenticate;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace DragonAcc.Controllers
@@ -41,6 +42,16 @@ namespace DragonAcc.Controllers
             {
                 return Response(ex.Message, 500);
             }
+        }
+        [HttpGet("roles")]
+        public async Task<IActionResult> GetUserRoles(int userId)
+        {
+            var result = await _authenticateService.GetUserRoles(userId);
+            if (result.Data != null)
+            {
+                return Response(result.Data);
+            }
+            return Response(result.Message);
         }
     }
 }

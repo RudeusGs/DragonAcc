@@ -135,56 +135,51 @@ namespace DragonAcc.Service.Services
             return new(result);
         }
 
-        public async Task<ApiResult> SpinWheel()
+        public async Task<ApiResult> SpinWheel(int prizeId)
         {
-            var luckyWheels = await _dataContext.LuckyWheels.ToListAsync();
+            var luckyWheel = await _dataContext.LuckyWheels.FirstOrDefaultAsync(lw => lw.Id == prizeId);
 
-            if (luckyWheels == null || luckyWheels.Count == 0)
+            if (luckyWheel == null)
             {
-                return new ApiResult { Message = "Không có sản phẩm nào trong vòng quay!" };
+                return new ApiResult { Message = "Phần thưởng không tồn tại!" };
             }
 
-            float totalProbability = luckyWheels.Sum(lw => lw.Probability ?? 0);
-
-            if (totalProbability <= 0)
-            {
-                return new ApiResult { Message = "Tổng xác suất không hợp lệ!" };
-            }
             var user = await _dataContext.Users.FirstOrDefaultAsync(x => x.Id == _userService.UserId);
             if (user == null)
             {
                 return new ApiResult { Message = "Người dùng không tồn tại!" };
             }
-            if (user.Coin < 1)
+
+            const int spinCost = 10;
+            if (user.Coin < spinCost)
             {
                 return new ApiResult { Message = "Bạn không đủ xu để quay!" };
             }
 
-            user.Coin -= 5;
-            await _dataContext.SaveChangesAsync();
-            Random rand = new Random();
-            float randomNumber = (float)(rand.NextDouble() * totalProbability);
-
-            float cumulativeProbability = 0f;
-            foreach (var luckyWheel in luckyWheels)
+            using var tran = await _dataContext.Database.BeginTransactionAsync();
+            try
             {
-                cumulativeProbability += luckyWheel.Probability ?? 0;
-                if (randomNumber <= cumulativeProbability)
+                user.Coin -= spinCost;
+                await _dataContext.SaveChangesAsync();
+
+                var listPrize = new LuckyWheelListPrize
                 {
-                    var listPrize = new LuckyWheelListPrize
-                    {
-                        Prize = luckyWheel.Prize,
-                        UserId = _userService.UserId,
-                        CreatedDate = DateTime.UtcNow
-                    };
-                    _dataContext.LuckyWheelListPrizes.Add(listPrize);
-                    await _dataContext.SaveChangesAsync();
-                    return new() { Message = "Quay thành công! Bạn đã mất 5 xu." };
-                }
+                    Prize = luckyWheel.Prize,
+                    UserId = _userService.UserId,
+                    CreatedDate = DateTime.UtcNow
+                };
+                _dataContext.LuckyWheelListPrizes.Add(listPrize);
+
+                await _dataContext.SaveChangesAsync();
+                await tran.CommitAsync();
+
+                return new ApiResult(new { prize = luckyWheel.Prize });
             }
-
-            return new ApiResult { Message = "Không chọn được sản phẩm nào!" };
+            catch (Exception e)
+            {
+                await tran.RollbackAsync();
+                return new ApiResult { Message = "Đã xảy ra lỗi khi quay vòng quay." };
+            }
         }
-
     }
 }

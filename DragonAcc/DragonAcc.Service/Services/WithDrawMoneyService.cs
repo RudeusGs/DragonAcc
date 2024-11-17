@@ -1,4 +1,6 @@
-﻿using DragonAcc.Infrastructure;
+﻿// File: WithDrawMoneyService.cs
+
+using DragonAcc.Infrastructure;
 using DragonAcc.Infrastructure.Entities;
 using DragonAcc.Service.Common.IServices;
 using DragonAcc.Service.Interfaces;
@@ -41,13 +43,15 @@ namespace DragonAcc.Service.Services
             {
                 return new ApiResult { Message = "Số tiền rút phải lớn hơn 0." };
             }
+
             var user = await _dataContext.Users
-        .FirstOrDefaultAsync(u => u.Id == model.UserId.Value);
+                .FirstOrDefaultAsync(u => u.Id == model.UserId.Value);
 
             if (user == null)
             {
                 return new ApiResult { Message = "Người dùng không tồn tại." };
             }
+
             if (!decimal.TryParse(user.Balance, out decimal currentBalance))
             {
                 return new ApiResult { Message = "Số dư người dùng không hợp lệ." };
@@ -66,6 +70,7 @@ namespace DragonAcc.Service.Services
                     user.Balance = currentBalance.ToString("F2");
 
                     _dataContext.Users.Update(user);
+
                     var withdrawMoney = new WithDrawMoney
                     {
                         NumberBank = model.NumberBank,
@@ -113,10 +118,12 @@ namespace DragonAcc.Service.Services
             {
                 return new ApiResult { Message = "Yêu cầu rút tiền không tồn tại." };
             }
+
             if (withdrawMoney.Status.Equals("Đã duyệt", StringComparison.OrdinalIgnoreCase))
             {
                 return new ApiResult { Message = "Trạng thái đã được cập nhật." };
             }
+
             var user = await _dataContext.Users
                 .FirstOrDefaultAsync(u => u.Id == withdrawMoney.UserId);
 
@@ -124,12 +131,51 @@ namespace DragonAcc.Service.Services
             {
                 return new ApiResult { Message = "Người dùng không tồn tại." };
             }
+
             using (var transaction = await _dataContext.Database.BeginTransactionAsync())
             {
                 try
                 {
                     withdrawMoney.Status = "Đã duyệt";
+
+                    var notification = new Notification
+                    {
+                        UserIdSend = _userService.UserId,
+                        UserId = withdrawMoney.UserId,
+                        Content = "Yêu cầu rút tiền của bạn đã được duyệt.",
+                        IsRead = false,
+                        CreatedDate = DateTime.Now,
+                    };
+
+                    _dataContext.Notifications.Add(notification);
                     _dataContext.WithDrawMoney.Update(withdrawMoney);
+
+                    // Cập nhật thống kê cho người dùng
+                    var userStat = await _dataContext.Statisticals.FirstOrDefaultAsync(s => s.UserId == user.Id);
+
+                    if (userStat != null)
+                    {
+                        userStat.TotalWithdrawn += withdrawMoney.Amount;
+                    }
+                    else
+                    {
+                        userStat = new Statistical
+                        {
+                            UserId = user.Id,
+                            TotalWithdrawn = withdrawMoney.Amount,
+                            TotalDeposit = 0m,
+                            TotalEarnings = 0m,
+                            TotalAccountSales = 0m,
+                            TotalAccountPurchases = 0m,
+                            CurrentAccountCount = 0,
+                            SoldAccountCount = 0,
+                            UnsoldAccountCount = 0,
+                            CreatedDate = DateTime.Now,
+                        };
+
+                        _dataContext.Statisticals.Add(userStat);
+                    }
+
                     await _dataContext.SaveChangesAsync();
                     await transaction.CommitAsync();
 

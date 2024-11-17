@@ -30,75 +30,6 @@
         
       </div>
     </div>
-
-    <!-- User Posts Album Section -->
-    <div class="user-posts-album" v-if="userPosts.length > 0">
-      <div class="post-album-container" v-for="(post, index) in userPosts" :key="index">
-        <div :class="[
-    'status-badge', 
-    post.status === 'Đang bán' ? 'status-selling' : 
-    post.status === 'Đã bán' ? 'status-sold' : 
-    post.status === 'Đang chờ duyệt' ? 'status-pending' : ''
-  ]">
-    {{ post.status }}
-  </div>
-        <div class="post-header">
-          <img src="https://tintuc.dienthoaigiakho.vn/wp-content/uploads/2024/01/avatar-nam-nu-trang-2.jpg" alt="User Avatar" class="avatar" />
-          <div class="post-user-info">
-            <span class="user-name1">{{ userModel.fullName }}</span>
-            <span class="post-type"> • {{ post.gameName }}</span>
-            <div class="post-date">{{ formatDate(post.createdDate) }}</div>
-          </div>
-        </div>
-        
-        <div class="post-content">
-          <p>{{ post.description }}</p>
-        </div>
-        
-        <div class="post-images" v-if="post.image">
-          <div class="image-grid">
-            <img
-              v-for="(image, imgIndex) in post.image.split(';')"
-              :key="imgIndex"
-              :src="getFullImageUrl(image)"
-              alt="Product image"
-              :class="['image-item', post.image.split(';').length === 1 ? 'single-image' : '']"
-            />
-          </div>
-        </div>        
-              
-        <!-- Game-specific Attributes -->
-        <div class="game-attributes">
-          <div v-if="post.gameName === 'Liên minh huyền thoại' || post.gameName === 'Tốc chiến'">
-            <p>Số Lượng Tướng: {{ post.championCount }}</p>
-            <p>Số Lượng Trang Phục: {{ post.skinCount }}</p>
-            <p>Hạng: {{ post.rank }}</p>
-          </div>
-          <div v-else-if="post.gameName === 'Pubg' || post.gameName === 'Valorant'">
-            <p>Số Lượng Skin Súng: {{ post.gunSkinCount }}</p>
-            <p v-if="post.gameName === 'Pubg'">Số Lượng Skin Nhân Vật: {{ post.humanSkinCount }}</p>
-            <p v-if="post.gameName === 'Valorant'">Số Lượng Nhân Vật: {{ post.championCount }}</p>
-            <p>Xếp hạng: {{ post.rank }}</p>
-          </div>
-          <div v-else-if="post.gameName === 'Ngọc rồng online'">
-            <p>Máy Chủ: {{ post.server }}</p>
-            <p>Hành Tinh: {{ post.planet }}</p>
-          </div>
-          <p class="price-item">Giá: {{ formatBalance(post.price) }}</p>
-        </div>
-        <div class="post-footer">
-          <div class="reactions">
-            <span class="reaction">
-              <i class="fas fa-heart" style="margin-right: 5px;"></i>Thích
-            </span>
-            <span class="reaction">
-              <i class="fas fa-comment" style="margin-right: 5px;"></i>Bình luận
-            </span>
-          </div>
-        </div>        
-      </div>
-    </div>
-    <div v-else class="no-posts-message">Bạn chưa có bài viết nào.</div>
   </div>
 </template>
 
@@ -107,7 +38,6 @@
 import LoadingSpinner from '@/components/LoadingSpinner.vue';
 import { ref, onMounted } from 'vue';
 import profile from '@/api/profile.api';
-import getpostbyuserid from '@/api/getpostbyuserid.api';
 import { userStore } from '@/stores/auth';
 
 const loading = ref(true);
@@ -124,7 +54,6 @@ const formatBalance = (balanceString: string) => {
   return balance.toLocaleString('vi-VN') + ' VNĐ';
 };
 
-const userPosts = ref<any[]>([]);
 const store = userStore();
 const userId = store.user?.id || JSON.parse(localStorage.getItem('user') || '{}').id;
 
@@ -150,50 +79,10 @@ const fetchUserProfile = async () => {
   }
 };
 
-const fetchUserPosts = async () => {
-  try {
-    if (userId) {
-      const [lolPosts, ngocRongPosts, pubgPosts, tocChienPosts, valorantPosts] = await Promise.all([
-        getpostbyuserid.getLolAccountsByUser(userId),
-        getpostbyuserid.getNgocRongAccountsByUser(userId),
-        getpostbyuserid.getPubgAccountsByUser(userId),
-        getpostbyuserid.getTocChienAccountsByUser(userId),
-        getpostbyuserid.getValorantAccountsByUser(userId)
-      ]);
-
-      userPosts.value = [
-        ...(lolPosts?.data?.data || []),
-        ...(ngocRongPosts?.data?.data || []),
-        ...(pubgPosts?.data?.data || []),
-        ...(tocChienPosts?.data?.data || []),
-        ...(valorantPosts?.data?.data || [])
-      ];
-      console.log("Fetched user posts:", userPosts.value);
-    }
-  } catch (error) {
-    console.error('Error fetching user posts:', error);
-  }
-};
-
-const formatDate = (dateString: string | null) => {
-  if (!dateString) return 'Chưa có thông tin';
-  const options: Intl.DateTimeFormatOptions = {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-  };
-  return new Date(dateString).toLocaleDateString('vi-VN', options);
-};
-
-const getFullImageUrl = (imageString: string) => {
-  const baseUrl = 'https://localhost:7071/';
-  return `${baseUrl}${imageString}`;
-};
 
 const fetchData = async () => {
   loading.value = true;
   await fetchUserProfile();
-  await fetchUserPosts();
   loading.value = false;
 };
 

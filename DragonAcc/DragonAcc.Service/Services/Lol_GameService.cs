@@ -1,177 +1,181 @@
-﻿    using DragonAcc.Infrastructure;
+﻿// File: Lol_GameService.cs
+
+using DragonAcc.Infrastructure;
 using DragonAcc.Infrastructure.Entities;
 using DragonAcc.Infrastructure.Entities.GameInfoDetail;
-    using DragonAcc.Service.Common.IServices;
-    using DragonAcc.Service.Interfaces;
-    using DragonAcc.Service.Models;
-    using DragonAcc.Service.Models.Lol_GameModel;
-    using Microsoft.AspNetCore.Http;
-    using Microsoft.EntityFrameworkCore;
+using DragonAcc.Service.Common.IServices;
+using DragonAcc.Service.Interfaces;
+using DragonAcc.Service.Models;
+using DragonAcc.Service.Models.Lol_GameModel;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
 
-    namespace DragonAcc.Service.Services
+namespace DragonAcc.Service.Services
+{
+    public class Lol_GameService : BaseService, ILol_GameService
     {
-        public class Lol_GameService : BaseService, ILol_GameService
+        private readonly IFtpDirectoryService _ftpDirectoryService;
+        public Lol_GameService(DataContext dataContext, IFtpDirectoryService ftpDirectoryService, IUserService userService) : base(dataContext, userService)
         {
-            private readonly IFtpDirectoryService _ftpDirectoryService;
-            public Lol_GameService(DataContext dataContext, IFtpDirectoryService ftpDirectoryService, IUserService userService) : base(dataContext, userService)
+            _ftpDirectoryService = ftpDirectoryService;
+        }
+
+        private async Task<List<string>> UploadFiles(int? accountId, List<IFormFile>? files)
+        {
+            var uploadedFilePaths = new List<string>();
+
+            if (files == null || !accountId.HasValue)
             {
-                _ftpDirectoryService = ftpDirectoryService;
-            }
-            private async Task<List<string>> UploadFiles(int? accountId, List<IFormFile>? files)
-            {
-                var uploadedFilePaths = new List<string>();
-
-                if (files == null || !accountId.HasValue)
-                {
-                    return uploadedFilePaths;
-                }
-
-                var accountFolder = $"public/Lol_Game/{accountId}";
-
-                foreach (var file in files)
-                {
-                    var fileExt = Path.GetExtension(file.FileName);
-                    var stream = file.OpenReadStream();
-                    var fileName = $"{accountId}.{uploadedFilePaths.Count + 1}{fileExt}";
-
-                    var result = await _ftpDirectoryService.TransferToFtpDirectoryAsync(stream, accountFolder, fileName);
-
-                    if (result.Succeed)
-                    {
-                        uploadedFilePaths.Add($"{accountFolder}/{fileName}");
-                    }
-                }
-
                 return uploadedFilePaths;
             }
-            public async Task<ApiResult> AddForUser(AddLol_GameModel model)
+
+            var accountFolder = $"public/Lol_Game/{accountId}";
+
+            foreach (var file in files)
             {
-                var gameAccount = await _dataContext.Lol_Games.FirstOrDefaultAsync(x => x.AccountName == model.AccountName);
+                var fileExt = Path.GetExtension(file.FileName);
+                var stream = file.OpenReadStream();
+                var fileName = $"{accountId}.{uploadedFilePaths.Count + 1}{fileExt}";
 
-                if (gameAccount == null)
+                var result = await _ftpDirectoryService.TransferToFtpDirectoryAsync(stream, accountFolder, fileName);
+
+                if (result.Succeed)
                 {
-                    using var tran = _dataContext.Database.BeginTransaction();
-                    try
+                    uploadedFilePaths.Add($"{accountFolder}/{fileName}");
+                }
+            }
+
+            return uploadedFilePaths;
+        }
+
+        public async Task<ApiResult> AddForUser(AddLol_GameModel model)
+        {
+            var gameAccount = await _dataContext.Lol_Games.FirstOrDefaultAsync(x => x.AccountName == model.AccountName);
+
+            if (gameAccount == null)
+            {
+                using var tran = _dataContext.Database.BeginTransaction();
+                try
+                {
+                    var newGameAccount = new Lol_Game
                     {
-                        var newGameAccount = new Lol_Game
-                        {
-                            GameName = "Liên minh huyền thoại",
-                            AccountName = model.AccountName,
-                            Password = model.Password,
-                            ChampionCount = model.ChampionCount,
-                            SkinCount = model.SkinCount,
-                            Rank = model.Rank,
-                            Price = model.Price,
-                            Status = "Đang chờ duyệt",
-                            NoYetMoney = false,
-                            UserId = _userService.UserId,                      
-                            CreatedDate = _now
-                        };
+                        GameName = "Liên minh huyền thoại",
+                        AccountName = model.AccountName,
+                        Password = model.Password,
+                        ChampionCount = model.ChampionCount,
+                        SkinCount = model.SkinCount,
+                        Rank = model.Rank,
+                        Price = model.Price,
+                        Status = "Đang chờ duyệt",
+                        NoYetMoney = false,
+                        UserId = _userService.UserId,
+                        CreatedDate = _now
+                    };
 
-                        _dataContext.Lol_Games.Add(newGameAccount);
-                        await _dataContext.SaveChangesAsync();
+                    _dataContext.Lol_Games.Add(newGameAccount);
+                    await _dataContext.SaveChangesAsync();
 
-                        if (model.Files != null && model.Files.Any())
+                    if (model.Files != null && model.Files.Any())
+                    {
+                        var fileUploads = await UploadFiles(newGameAccount.Id, model.Files);
+                        if (fileUploads.Any())
                         {
-                            var fileUploads = await UploadFiles(newGameAccount.Id, model.Files);
-                            if (fileUploads.Any())
-                            {
-                                newGameAccount.Image = string.Join(";", fileUploads);
-                            }
+                            newGameAccount.Image = string.Join(";", fileUploads);
                         }
+                    }
 
-                        await _dataContext.SaveChangesAsync();
-                        await tran.CommitAsync();
-                        return new(newGameAccount);
-                    }
-                    catch (Exception e)
-                    {
-                        await tran.RollbackAsync();
-                        throw new Exception(e.Message);
-                    }
+                    await _dataContext.SaveChangesAsync();
+                    await tran.CommitAsync();
+                    return new(newGameAccount);
                 }
-
-                return new()
+                catch (Exception e)
                 {
-                    Message = "Tài khoản này đã tồn tại! Vui lòng nhập thêm tài khoản khác."
-                };
-            }
-
-            public async Task<ApiResult> DeleteForUserAndAdmin(int id)
-            {
-                var gameaccount = await _dataContext.Lol_Games.FirstOrDefaultAsync(x => x.Id == id);
-                if (gameaccount != null)
-                {
-                    using var tran = await _dataContext.Database.BeginTransactionAsync();
-                    try
-                    {
-                        _dataContext.Lol_Games.Remove(gameaccount);
-                        await _dataContext.SaveChangesAsync();
-                        await tran.CommitAsync();
-                        return new();
-                    }
-                    catch (Exception e)
-                    {
-                        await tran.RollbackAsync();
-                        throw new Exception(e.Message);
-                    }
+                    await tran.RollbackAsync();
+                    throw new Exception(e.Message);
                 }
-                return new ApiResult() { Message = "Không tìm thấy tài khoản này." };
             }
 
-            public async Task<ApiResult> GetAll()
+            return new()
             {
-                var result = await _dataContext.Lol_Games.ToListAsync();
-                return new(result);
-            }
+                Message = "Tài khoản này đã tồn tại! Vui lòng nhập thêm tài khoản khác."
+            };
+        }
 
-            public async Task<ApiResult> GetById(int id)
+        public async Task<ApiResult> DeleteForUserAndAdmin(int id)
+        {
+            var gameaccount = await _dataContext.Lol_Games.FirstOrDefaultAsync(x => x.Id == id);
+            if (gameaccount != null)
             {
-                var result = await _dataContext.Lol_Games.FirstOrDefaultAsync(x => x.Id == id);
-                return new(result);
-            }
-
-            public async Task<ApiResult> UpdateForUser(UpdateLol_GameModel model)
-            {
-                var gameAccount = await _dataContext.Lol_Games.FirstOrDefaultAsync(x => x.Id == model.Id);
-
-                if (gameAccount != null)
+                using var tran = await _dataContext.Database.BeginTransactionAsync();
+                try
                 {
-                    using var tran = await _dataContext.Database.BeginTransactionAsync();
-                    try
+                    _dataContext.Lol_Games.Remove(gameaccount);
+                    await _dataContext.SaveChangesAsync();
+                    await tran.CommitAsync();
+                    return new();
+                }
+                catch (Exception e)
+                {
+                    await tran.RollbackAsync();
+                    throw new Exception(e.Message);
+                }
+            }
+            return new ApiResult() { Message = "Không tìm thấy tài khoản này." };
+        }
+
+        public async Task<ApiResult> GetAll()
+        {
+            var result = await _dataContext.Lol_Games.ToListAsync();
+            return new(result);
+        }
+
+        public async Task<ApiResult> GetById(int id)
+        {
+            var result = await _dataContext.Lol_Games.FirstOrDefaultAsync(x => x.Id == id);
+            return new(result);
+        }
+
+        public async Task<ApiResult> UpdateForUser(UpdateLol_GameModel model)
+        {
+            var gameAccount = await _dataContext.Lol_Games.FirstOrDefaultAsync(x => x.Id == model.Id);
+
+            if (gameAccount != null)
+            {
+                using var tran = await _dataContext.Database.BeginTransactionAsync();
+                try
+                {
+                    gameAccount.AccountName = model.AccountName ?? gameAccount.AccountName;
+                    gameAccount.Password = model.Password ?? gameAccount.Password;
+                    gameAccount.ChampionCount = model.ChampionCount ?? gameAccount.ChampionCount;
+                    gameAccount.SkinCount = model.SkinCount ?? gameAccount.SkinCount;
+                    gameAccount.Rank = model.Rank ?? gameAccount.Rank;
+                    gameAccount.Price = model.Price ?? gameAccount.Price;
+                    gameAccount.UpdatedDate = _now;
+                    if (model.Files != null && model.Files.Any())
                     {
-                        gameAccount.AccountName = model.AccountName ?? gameAccount.AccountName;
-                        gameAccount.Password = model.Password ?? gameAccount.Password;
-                        gameAccount.ChampionCount = model.ChampionCount ?? gameAccount.ChampionCount;
-                        gameAccount.SkinCount = model.SkinCount ?? gameAccount.SkinCount;
-                        gameAccount.Rank = model.Rank ?? gameAccount.Rank;
-                        gameAccount.Price = model.Price ?? gameAccount.Price;
-                        gameAccount.UpdatedDate = _now;
-                        if (model.Files != null && model.Files.Any())
+                        var fileUploads = await UploadFiles(gameAccount.Id, model.Files);
+                        if (fileUploads.Any())
                         {
-                            var fileUploads = await UploadFiles(gameAccount.Id, model.Files);
-                            if (fileUploads.Any())
-                            {
-                                gameAccount.Image = string.IsNullOrEmpty(gameAccount.Image)
-                                    ? string.Join(";", fileUploads)
-                                    : $"{gameAccount.Image};{string.Join(";", fileUploads)}";
-                            }
+                            gameAccount.Image = string.IsNullOrEmpty(gameAccount.Image)
+                                ? string.Join(";", fileUploads)
+                                : $"{gameAccount.Image};{string.Join(";", fileUploads)}";
                         }
-
-                        await _dataContext.SaveChangesAsync();
-                        await tran.CommitAsync();
-
-                        return new() { Message = "Cập nhật thành công!" };
                     }
-                    catch (Exception e)
-                    {
-                        await tran.RollbackAsync();
-                        throw new Exception(e.Message);
-                    }
+
+                    await _dataContext.SaveChangesAsync();
+                    await tran.CommitAsync();
+
+                    return new() { Message = "Cập nhật thành công!" };
                 }
-
-                return new() { Message = "Không tìm thấy tài khoản game này." };
+                catch (Exception e)
+                {
+                    await tran.RollbackAsync();
+                    throw new Exception(e.Message);
+                }
             }
+
+            return new() { Message = "Không tìm thấy tài khoản game này." };
+        }
 
         public async Task<ApiResult> UpdateForAdmin(int id)
         {
@@ -187,33 +191,38 @@ using DragonAcc.Infrastructure.Entities.GameInfoDetail;
                         gameAccount.Status = "Đang bán";
                         gameAccount.PasswordChanged = RandomPasswordChangeService.GenerateRandomString();
                         gameAccount.AdminUpdate = _userService.UserId;
+                        _dataContext.Lol_Games.Update(gameAccount);
                         var statistical = await _dataContext.Statisticals
-                            .FirstOrDefaultAsync(s => s.UserId == _userService.UserId);
+                            .FirstOrDefaultAsync(s => s.UserId == gameAccount.UserId);
 
                         if (statistical != null)
                         {
-                            statistical.CountAccount = (statistical.CountAccount ?? 0) + 1;
-                            statistical.UnSoldAccount = (statistical.UnSoldAccount ?? 0) + 1;
+                            statistical.CurrentAccountCount += 1;
+                            statistical.UnsoldAccountCount += 1;
                         }
                         else
                         {
                             statistical = new Statistical
                             {
                                 UserId = gameAccount.UserId,
-                                CountAccount = 1,
-                                UnSoldAccount = 1,
+                                CurrentAccountCount = 1,
+                                UnsoldAccountCount = 1,
                                 TotalDeposit = 0m,
-                                AccountSold = 0,
-                                TotalWithDraw = 0m,
+                                SoldAccountCount = 0,
+                                TotalWithdrawn = 0m,
+                                TotalEarnings = 0m,
+                                TotalAccountSales = 0m,
+                                TotalAccountPurchases = 0m,
                                 CreatedDate = DateTime.Now,
                             };
                             _dataContext.Statisticals.Add(statistical);
                         }
+
                         var notification = new Notification
                         {
                             UserIdSend = _userService.UserId,
                             UserId = gameAccount.UserId,
-                            Content = "Tài khoản của bạn đã được duyệt.",
+                            Content = "Tài khoản liên minh huyền thoại của bạn đã được duyệt.",
                             IsRead = false,
                             CreatedDate = DateTime.Now,
                         };
@@ -235,12 +244,13 @@ using DragonAcc.Infrastructure.Entities.GameInfoDetail;
                 catch (Exception e)
                 {
                     await tran.RollbackAsync();
-                    return new ApiResult { Message = "Đã xảy ra lỗi khi duyệt yêu cầu rút tiền." };
+                    return new ApiResult { Message = "Đã xảy ra lỗi khi duyệt tài khoản." };
                 }
             }
 
             return new ApiResult { Message = "Không tìm thấy tài khoản game này." };
         }
+
         public async Task<ApiResult> GetFullName(int id)
         {
             var game = await _dataContext.Lol_Games.FirstOrDefaultAsync(x => x.Id == id);
@@ -248,6 +258,7 @@ using DragonAcc.Infrastructure.Entities.GameInfoDetail;
             var user = await _dataContext.Users.FirstOrDefaultAsync(u => u.Id == game.UserId);
             return new(user.FullName);
         }
+
         public async Task<ApiResult> GetAllByUser(int userId)
         {
             var result = await _dataContext.Lol_Games
@@ -255,6 +266,7 @@ using DragonAcc.Infrastructure.Entities.GameInfoDetail;
                .ToListAsync();
             return new(result);
         }
+
         public async Task<ApiResult> BuyGameAccount(BuyAccountLol_GameModel model)
         {
             if (model.Id == null)
@@ -315,7 +327,8 @@ using DragonAcc.Infrastructure.Entities.GameInfoDetail;
 
             using var tran = await _dataContext.Database.BeginTransactionAsync();
             try
-            { 
+            {
+                // Cập nhật số dư cho người bán
                 if (decimal.TryParse(seller.Balance, out decimal sellerBalance))
                 {
                     seller.Balance = (sellerBalance + sellerReceiveAmount).ToString();
@@ -324,9 +337,20 @@ using DragonAcc.Infrastructure.Entities.GameInfoDetail;
                 {
                     seller.Balance = sellerReceiveAmount.ToString();
                 }
+
+                // Cập nhật xu cho người mua
+                if (accountPrice > 50000)
+                {
+                    buyer.Coin += 1;
+                }
+
                 _dataContext.Update(seller);
+
+                // Cập nhật số dư cho người mua
                 buyer.Balance = (buyerBalance - accountPrice).ToString();
                 _dataContext.Update(buyer);
+
+                // Thêm vào bảng PurchasedAccount
                 var purchasedAccount = new PurchasedAccount
                 {
                     UserId = model.UserId,
@@ -345,21 +369,63 @@ using DragonAcc.Infrastructure.Entities.GameInfoDetail;
 
                 if (sellerStat != null)
                 {
-                    sellerStat.AccountSold = (sellerStat.AccountSold ?? 0) + 1;
+                    sellerStat.SoldAccountCount += 1;
+                    sellerStat.UnsoldAccountCount -= 1;
+                    sellerStat.TotalAccountSales += sellerReceiveAmount;
+                    sellerStat.TotalEarnings += sellerReceiveAmount;
                 }
                 else
                 {
                     sellerStat = new Statistical
                     {
                         UserId = seller.Id,
-                        CountAccount = 0,
-                        AccountSold = 1,
+                        SoldAccountCount = 1,
+                        UnsoldAccountCount = 0,
                         TotalDeposit = 0m,
-                        UnSoldAccount = 0,
-                        TotalWithDraw = 0m
+                        TotalWithdrawn = 0m,
+                        CurrentAccountCount = 0,
+                        TotalAccountSales = sellerReceiveAmount,
+                        TotalEarnings = sellerReceiveAmount,
+                        TotalAccountPurchases = 0m,
+                        CreatedDate = DateTime.Now,
                     };
                     _dataContext.Statisticals.Add(sellerStat);
                 }
+                var buyerStat = await _dataContext.Statisticals.FirstOrDefaultAsync(s => s.UserId == buyer.Id);
+
+                if (buyerStat != null)
+                {
+                    buyerStat.CurrentAccountCount += 1;
+                    buyerStat.TotalAccountPurchases += accountPrice;
+                    buyerStat.TotalEarnings -= accountPrice;
+                }
+                else
+                {
+                    buyerStat = new Statistical
+                    {
+                        UserId = buyer.Id,
+                        CurrentAccountCount = 1,
+                        SoldAccountCount = 0,
+                        UnsoldAccountCount = 0,
+                        TotalDeposit = 0m,
+                        TotalWithdrawn = 0m,
+                        TotalAccountSales = 0m,
+                        TotalEarnings = -accountPrice,
+                        TotalAccountPurchases = accountPrice,
+                        CreatedDate = DateTime.Now,
+                    };
+                    _dataContext.Statisticals.Add(buyerStat);
+                }
+
+                var notification = new Notification
+                {
+                    UserIdSend = model.UserId,
+                    UserId = seller.Id,
+                    Content = $"{buyer.FullName ?? buyer.UserName} đã mua tài khoản liên minh huyền thoại của bạn.",
+                    IsRead = false,
+                    CreatedDate = DateTime.Now,
+                };
+                _dataContext.Notifications.Add(notification);
 
                 await _dataContext.SaveChangesAsync();
                 await tran.CommitAsync();
@@ -376,6 +442,4 @@ using DragonAcc.Infrastructure.Entities.GameInfoDetail;
             }
         }
     }
-
 }
-
