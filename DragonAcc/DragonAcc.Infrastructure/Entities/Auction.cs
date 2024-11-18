@@ -11,7 +11,7 @@ namespace DragonAcc.Infrastructure.Entities
         public DateTime? StartDateTime { get; set; }
         public string? Image { get; set; }
         public string? TimeAuction { get; set; }
-        public string? Status { get; set; }
+        public bool? Status { get; set; }
         public int? WinnerId { get; set; }
     }
 }

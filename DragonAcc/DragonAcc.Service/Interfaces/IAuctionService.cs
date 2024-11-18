@@ -13,5 +13,9 @@ namespace DragonAcc.Service.Interfaces
         public Task<ApiResult> Update(UpdateAuctionModel model);
         public Task<ApiResult> UpdateCurrentPrice(UpdateCurrentPriceModel model);
         Task<ApiResult> GetWinnerByAuctionId(int auctionId);
+
+        public Task<ApiResult> GetAllAuctionDetail(int auctionId);
+        public Task<ApiResult> AddAuctionDetail(AddAuctionDetailModel model);
+        public Task<ApiResult> EndAuction(int id);
     }
 }

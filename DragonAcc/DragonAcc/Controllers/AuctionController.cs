@@ -105,5 +105,46 @@ namespace DragonAcc.Controllers
                 return Response(e.Message, 500);
             }
         }
+        [HttpGet("get-all-auction-detail")]
+        public async Task<IActionResult> GetAllAuctionDetail([FromQuery] int auctionId)
+        {
+            try
+            {
+                var result = await _auctionService.GetAllAuctionDetail(auctionId);
+                return Response(result);
+            }
+            catch (Exception e)
+            {
+                return Response(e.Message, 500);
+            }
+        }
+        [Authorize]
+        [HttpPost("add-auction-detail")]
+        public async Task<IActionResult> AddAuctionDetail([FromBody] AddAuctionDetailModel model)
+        {
+            try
+            {
+                var result = await _auctionService.AddAuctionDetail(model);
+                return Response(result);
+            }
+            catch (Exception e)
+            {
+                return Response(e.Message, 500);
+            }
+        }
+        [Authorize]
+        [HttpPut("end-auction")]
+        public async Task<IActionResult> EndAuction(int id)
+        {
+            try
+            {
+                var result = await _auctionService.EndAuction(id);
+                return Response(result);
+            }
+            catch (Exception e)
+            {
+                return Response(e.Message, 500);
+            }
+        }
     }
 }
